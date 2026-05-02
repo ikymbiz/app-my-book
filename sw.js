@@ -5,7 +5,7 @@
    - Book APIs (openbd / google books): network-first w/ short cache
    - Cover images: cache-first
 ================================================================ */
-const VERSION = "v1.0.1";
+const VERSION = "v1.1.0";
 const SHELL_CACHE = `library-shell-${VERSION}`;
 const RUNTIME_CACHE = `library-runtime-${VERSION}`;
 const IMAGE_CACHE = `library-images-${VERSION}`;
@@ -140,5 +140,19 @@ self.addEventListener("fetch", (event) => {
   // 6) Default → try network, fall back to cache
   event.respondWith(
     fetch(req).catch(() => caches.match(req))
+  );
+});
+
+
+/* ---------- notification click ---------- */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow("./index.html");
+    })
   );
 });

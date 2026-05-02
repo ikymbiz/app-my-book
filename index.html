@@ -187,10 +187,13 @@
       <p class="label-italic text-sepia text-sm">My Personal Library</p>
       <h1 class="display-serif text-3xl text-ink leading-tight">蔵書</h1>
     </div>
+    <div class="flex items-center gap-2">
+    <button id="recommendBtn" class="btn btn-primary text-sm" aria-label="おすすめ">おすすめ</button>
     <button id="exportBtn" class="btn btn-ghost text-sm" aria-label="エクスポート">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       書き出し
     </button>
+    </div>
   </div>
 </header>
 
@@ -209,6 +212,12 @@
       <option value="titleAsc">タイトル順</option>
     </select>
   </div>
+  <div class="mt-2 flex items-center gap-2">
+    <select id="genreFilter" class="field flex-1">
+      <option value="">すべてのジャンル</option>
+    </select>
+    <button id="clearFilters" class="btn btn-ghost text-sm">解除</button>
+  </div>
   <p id="counter" class="label-italic text-sepia text-xs mt-2 ml-1"></p>
 </section>
 
@@ -219,7 +228,7 @@
 <template id="emptyTpl">
   <div class="empty mx-5 fade-up">
     <p class="display-serif text-2xl text-ink mb-1">まだ一冊もありません</p>
-    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、本のバーコードをスキャンしてみましょう。</p>
+    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、バーコードまたは手入力で本を追加できます。</p>
   </div>
 </template>
 
@@ -244,11 +253,18 @@
         <button class="btn btn-ghost text-sm" data-close>閉じる</button>
       </div>
 
+      <div class="mb-3">
+        <select id="cameraSelect" class="field hidden" aria-label="カメラを選択"></select>
+      </div>
       <div class="relative">
         <div id="reader"></div>
         <div class="scan-frame"></div>
       </div>
       <p id="scanStatus" class="text-sm text-sepia text-center mt-3">カメラを起動しています…</p>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button id="retryCamera" class="btn btn-ghost text-sm">カメラ再試行</button>
+        <button id="addWithoutBarcode" class="btn btn-ghost text-sm">バーコードなしで追加</button>
+      </div>
 
       <div class="mt-4 rule">or enter manually</div>
 
@@ -286,7 +302,11 @@
         </div>
       </div>
 
-      <label class="label-italic text-xs text-sepia mt-4 block">Read date — 読んだ日（任意）</label>
+      <label class="label-italic text-xs text-sepia mt-4 block">Genre — ジャンル</label>
+      <input id="fGenre" class="field mt-1" list="genreOptions" placeholder="小説、ビジネス、歴史、漫画など">
+      <datalist id="genreOptions"></datalist>
+
+      <label class="label-italic text-xs text-sepia mt-3 block">Read date — 読んだ日（任意）</label>
       <input id="fReadAt" type="date" class="field mt-1">
 
       <label class="label-italic text-xs text-sepia mt-3 block">Comment — コメント</label>
@@ -323,6 +343,33 @@
   </div>
 </div>
 
+
+<!-- ============== RECOMMEND SHEET ============== -->
+<div id="recommendSheet" class="fixed inset-0 z-40 hidden">
+  <div class="absolute inset-0 bg-ink/40" data-close></div>
+  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
+    <div class="sheet-handle"></div>
+    <div class="px-5 pb-7 pt-2">
+      <div class="flex items-baseline justify-between mb-3">
+        <div>
+          <p class="label-italic text-sepia text-sm">Recommendations</p>
+          <h2 class="display-serif text-2xl">おすすめ本</h2>
+        </div>
+        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
+      </div>
+      <p class="text-sm text-sepia mb-3">ジャンルや蔵書傾向から Google Books で候補を探します。通知を許可すると、アプリを開いている間におすすめを通知できます。</p>
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <select id="recommendGenre" class="field col-span-2">
+          <option value="">ジャンルを自動で選ぶ</option>
+        </select>
+        <button id="loadRecommendations" class="btn btn-primary">おすすめを取得</button>
+        <button id="enableRecommendations" class="btn btn-ghost">通知を有効化</button>
+      </div>
+      <div id="recommendList" class="grid grid-cols-1 gap-3"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ============== TOAST ============== -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -332,11 +379,18 @@
    Storage
 ================================================================ */
 const STORE_KEY = "library.books.v1";
+const REC_KEY = "library.recommendations.v1";
+const DEFAULT_GENRES = ["小説","文学","漫画","ビジネス","自己啓発","歴史","科学","技術","デザイン","アート","料理","旅行","教育","児童書","ミステリー","SF","ファンタジー","エッセイ"];
 const loadBooks = () => {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
   catch { return []; }
 };
 const saveBooks = (arr) => localStorage.setItem(STORE_KEY, JSON.stringify(arr));
+const loadRecSettings = () => {
+  try { return JSON.parse(localStorage.getItem(REC_KEY)) || { enabled: false, genre: "" }; }
+  catch { return { enabled: false, genre: "" }; }
+};
+const saveRecSettings = (obj) => localStorage.setItem(REC_KEY, JSON.stringify(obj));
 
 let books = loadBooks();
 let editingId = null;       // id of book being edited (null = new)
@@ -369,6 +423,37 @@ const toast = (msg, type = "ok") => {
   clearTimeout(t._tid);
   t._tid = setTimeout(() => t.classList.remove("show"), 2200);
 };
+
+function knownGenres() {
+  const fromBooks = books.map(b => (b.genre || "").trim()).filter(Boolean);
+  return [...new Set([...DEFAULT_GENRES, ...fromBooks])].sort((a,b) => a.localeCompare(b, "ja"));
+}
+function guessGenreFromBook(meta = {}) {
+  const text = `${meta.title || ""} ${meta.author || ""}`.toLowerCase();
+  const subjects = (meta.subjects || []).join(" ").toLowerCase();
+  const all = `${text} ${subjects}`;
+  if (/comic|manga|コミック|漫画/.test(all)) return "漫画";
+  if (/business|management|経営|ビジネス/.test(all)) return "ビジネス";
+  if (/history|歴史/.test(all)) return "歴史";
+  if (/science|科学/.test(all)) return "科学";
+  if (/technology|computer|programming|技術|プログラミング/.test(all)) return "技術";
+  if (/mystery|ミステリ/.test(all)) return "ミステリー";
+  if (/fiction|novel|小説|文学/.test(all)) return "小説";
+  return "";
+}
+function refreshGenreControls() {
+  const options = knownGenres();
+  const currentFilter = $("#genreFilter")?.value || "";
+  const currentRec = $("#recommendGenre")?.value || "";
+  const filter = $("#genreFilter");
+  if (filter) filter.innerHTML = `<option value="">すべてのジャンル</option>` + options.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+  if (filter) filter.value = currentFilter;
+  const rec = $("#recommendGenre");
+  if (rec) rec.innerHTML = `<option value="">ジャンルを自動で選ぶ</option>` + options.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+  if (rec) rec.value = currentRec;
+  const datalist = $("#genreOptions");
+  if (datalist) datalist.innerHTML = options.map(g => `<option value="${escapeHtml(g)}"></option>`).join("");
+}
 
 /* ================================================================
    ISBN validation & normalisation
@@ -431,6 +516,7 @@ async function lookupBook(isbn) {
       title:  v.title || "",
       author: (v.authors || []).join(", "),
       cover:  (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
+      subjects: v.categories || [],
       source: "google",
     };
   };
@@ -451,8 +537,10 @@ async function lookupBook(isbn) {
 ================================================================ */
 function getFiltered() {
   const q = $("#searchInput").value.trim().toLowerCase();
+  const genre = $("#genreFilter")?.value || "";
   const sort = $("#sortSelect").value;
   let arr = books.filter(b => {
+    if (genre && (b.genre || "") !== genre) return false;
     if (!q) return true;
     return (b.title || "").toLowerCase().includes(q)
         || (b.author || "").toLowerCase().includes(q);
@@ -468,6 +556,7 @@ function getFiltered() {
 }
 
 function render() {
+  refreshGenreControls();
   const list = $("#list");
   list.innerHTML = "";
   const filtered = getFiltered();
@@ -499,6 +588,7 @@ function render() {
       <div class="min-w-0 flex-1">
         <p class="display-serif text-ink text-base leading-snug line-clamp-3">${escapeHtml(b.title || "（無題）")}</p>
         <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author || "")}</p>
+        ${b.genre ? `<p class="inline-flex mt-2 px-2 py-0.5 rounded-full bg-parchment text-sepia text-[11px] border border-aged">${escapeHtml(b.genre)}</p>` : ""}
         ${b.readAt ? `<p class="label-italic text-xs text-burgundy mt-2">read · ${fmtDate(b.readAt)}</p>` : ""}
         ${b.comment ? `<p class="text-sepia text-xs mt-1 line-clamp-2">“${escapeHtml(b.comment)}”</p>` : ""}
       </div>
@@ -519,6 +609,7 @@ function openEditSheet(id, prefill = null) {
   $("#fTitle").value   = b?.title   || "";
   $("#fAuthor").value  = b?.author  || "";
   $("#fIsbn").value    = b?.isbn    || "";
+  $("#fGenre").value   = b?.genre   || guessGenreFromBook(b || {}) || "";
   $("#fReadAt").value  = b?.readAt  || "";
   $("#fComment").value = b?.comment || "";
   const cov = $("#editCover");
@@ -533,6 +624,7 @@ $("#saveBtn").addEventListener("click", () => {
   const title  = $("#fTitle").value.trim();
   const author = $("#fAuthor").value.trim();
   const isbn   = $("#fIsbn").value.trim();
+  const genre  = $("#fGenre").value.trim();
   const readAt = $("#fReadAt").value || "";
   const comment= $("#fComment").value.trim();
   const cover  = $("#editCover").getAttribute("src") || "";
@@ -542,12 +634,12 @@ $("#saveBtn").addEventListener("click", () => {
   if (editingId) {
     const i = books.findIndex(b => b.id === editingId);
     if (i >= 0) {
-      books[i] = { ...books[i], title, author, isbn, readAt, comment, cover };
+      books[i] = { ...books[i], title, author, isbn, genre, readAt, comment, cover };
     }
   } else {
     books.unshift({
       id: uid(),
-      title, author, isbn, readAt, comment, cover,
+      title, author, isbn, genre, readAt, comment, cover,
       addedAt: new Date().toISOString(),
     });
   }
@@ -581,34 +673,56 @@ async function openScanSheet() {
   $("#scanStatus").textContent = "カメラを起動しています…";
   $("#manualIsbn").value = "";
   lastScanned = ""; lastScanAt = 0; scanBusy = false;
+  await startScanner();
+}
 
+function scanConfig() {
+  const cfg = {
+    fps: 15,
+    qrbox: (vw, vh) => {
+      const w = Math.min(vw * 0.86, 520);
+      const h = Math.min(vh * 0.34, 220);
+      return { width: w, height: h };
+    },
+    aspectRatio: 1.6,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+  };
+  if (window.Html5QrcodeSupportedFormats) {
+    cfg.formatsToSupport = [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,
+    ].filter(Boolean);
+  }
+  return cfg;
+}
+
+async function startScanner(cameraId = null) {
   try {
-    if (!scanner) scanner = new Html5Qrcode("reader", { verbose: false });
-    await scanner.start(
-      { facingMode: "environment" },
-      {
-        fps: 12,
-        qrbox: (vw, vh) => {
-          const w = Math.min(vw * 0.78, 420);
-          const h = Math.min(vh * 0.28, 160);
-          return { width: w, height: h };
-        },
-        aspectRatio: 1.6,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ],
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      },
-      onScanSuccess,
-      () => { /* swallow per-frame errors */ }
-    );
-    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください";
+    if (!window.Html5Qrcode) throw new Error("html5-qrcode is not loaded");
+    if (scanner) { try { await scanner.stop(); } catch {} try { scanner.clear(); } catch {} }
+    scanner = new Html5Qrcode("reader", { verbose: false });
+    let cameraConfig = cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" };
+
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      const select = $("#cameraSelect");
+      if (cameras && cameras.length > 1 && select) {
+        select.classList.remove("hidden");
+        select.innerHTML = cameras.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label || "Camera")}</option>`).join("");
+        const back = cameras.find(c => /back|rear|environment|背面|アウト/i.test(c.label || ""));
+        if (!cameraId && back) cameraConfig = { deviceId: { exact: back.id } };
+        select.value = cameraId || back?.id || cameras[0].id;
+      }
+    } catch {}
+
+    await scanner.start(cameraConfig, scanConfig(), onScanSuccess, () => {});
+    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください。読めない場合は手入力またはバーコードなしで追加してください。";
   } catch (err) {
     console.error(err);
-    $("#scanStatus").textContent = "カメラを起動できませんでした。HTTPS環境で、カメラの利用を許可してください。";
+    $("#scanStatus").textContent = "カメラを起動できませんでした。HTTPS環境でカメラを許可するか、ISBN手入力/バーコードなし追加を使ってください。";
   }
 }
 
@@ -667,6 +781,16 @@ $("#manualLookup").addEventListener("click", async () => {
   await handleIsbn(isbn);
 });
 
+$("#manualIsbn").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#manualLookup").click();
+});
+$("#retryCamera").addEventListener("click", () => startScanner($("#cameraSelect")?.value || null));
+$("#cameraSelect").addEventListener("change", (e) => startScanner(e.target.value));
+$("#addWithoutBarcode").addEventListener("click", async () => {
+  await closeScanSheet();
+  openEditSheet(null, { title: "", author: "", isbn: "", genre: "" });
+});
+
 /* ================================================================
    Export
 ================================================================ */
@@ -695,7 +819,7 @@ $("#exportJson").addEventListener("click", () => {
 });
 
 $("#exportCsv").addEventListener("click", () => {
-  const cols = ["id","title","author","isbn","readAt","addedAt","comment","cover"];
+  const cols = ["id","title","author","genre","isbn","readAt","addedAt","comment","cover"];
   const esc = (v) => {
     const s = (v ?? "").toString().replace(/"/g, '""');
     return /[",\n]/.test(s) ? `"${s}"` : s;
@@ -709,6 +833,107 @@ $("#exportCsv").addEventListener("click", () => {
   toast("CSVを書き出しました");
 });
 
+
+/* ================================================================
+   Recommendations / delivery
+================================================================ */
+function pickRecommendationGenre() {
+  const selected = $("#recommendGenre")?.value || "";
+  if (selected) return selected;
+  const counts = {};
+  for (const b of books) if (b.genre) counts[b.genre] = (counts[b.genre] || 0) + 1;
+  const top = Object.entries(counts).sort((a,b) => b[1] - a[1])[0]?.[0];
+  return top || "小説";
+}
+
+async function fetchRecommendations(genre) {
+  const q = encodeURIComponent(`subject:${genre}`);
+  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&langRestrict=ja&maxResults=10&orderBy=relevance`);
+  if (!r.ok) throw new Error("google books " + r.status);
+  const j = await r.json();
+  const owned = new Set(books.map(b => normalizeIsbn(b.isbn)).filter(Boolean));
+  return (j.items || []).map(item => {
+    const v = item.volumeInfo || {};
+    const ids = v.industryIdentifiers || [];
+    const isbn = ids.find(x => x.type === "ISBN_13")?.identifier || ids.find(x => x.type === "ISBN_10")?.identifier || "";
+    return {
+      title: v.title || "（無題）",
+      author: (v.authors || []).join(", "),
+      isbn: normalizeIsbn(isbn),
+      genre,
+      cover: (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
+      description: v.description || "",
+      infoLink: v.infoLink || "",
+    };
+  }).filter(b => !b.isbn || !owned.has(b.isbn)).slice(0, 6);
+}
+
+function renderRecommendations(items) {
+  const box = $("#recommendList");
+  if (!items.length) { box.innerHTML = `<div class="empty">おすすめ候補が見つかりませんでした。</div>`; return; }
+  box.innerHTML = "";
+  for (const b of items) {
+    const el = document.createElement("article");
+    el.className = "book-card rounded-xl p-3 flex gap-3";
+    el.innerHTML = `
+      <div class="shrink-0">${b.cover ? `<img src="${escapeHtml(b.cover)}" alt="" class="w-16 h-24 object-cover rounded-md cover-shadow bg-aged">` : `<div class="w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs">No Cover</div>`}</div>
+      <div class="min-w-0 flex-1">
+        <p class="display-serif text-ink text-base leading-snug line-clamp-2">${escapeHtml(b.title)}</p>
+        <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author)}</p>
+        <p class="inline-flex mt-2 px-2 py-0.5 rounded-full bg-parchment text-sepia text-[11px] border border-aged">${escapeHtml(b.genre)}</p>
+        <p class="text-sepia text-xs mt-2 line-clamp-2">${escapeHtml(b.description.replace(/<[^>]+>/g, ""))}</p>
+        <div class="mt-3 flex gap-2">
+          <button class="btn btn-primary text-sm" data-add-rec>本棚に追加</button>
+          ${b.infoLink ? `<a class="btn btn-ghost text-sm" href="${escapeHtml(b.infoLink)}" target="_blank" rel="noopener">詳細</a>` : ""}
+        </div>
+      </div>`;
+    el.querySelector("[data-add-rec]").addEventListener("click", () => openEditSheet(null, b));
+    box.appendChild(el);
+  }
+}
+
+async function loadAndShowRecommendations(notify = false) {
+  const genre = pickRecommendationGenre();
+  $("#recommendList").innerHTML = `<div class="empty">${escapeHtml(genre)} のおすすめを取得しています…</div>`;
+  try {
+    const items = await fetchRecommendations(genre);
+    renderRecommendations(items);
+    if (notify && items[0]) sendRecommendationNotification(items[0]);
+  } catch (e) {
+    console.warn(e);
+    $("#recommendList").innerHTML = `<div class="empty">おすすめを取得できませんでした。通信環境を確認してください。</div>`;
+  }
+}
+
+async function sendRecommendationNotification(book) {
+  if (!("Notification" in window)) { toast("このブラウザは通知に対応していません", "error"); return; }
+  if (Notification.permission === "default") await Notification.requestPermission();
+  if (Notification.permission !== "granted") { toast("通知が許可されていません", "error"); return; }
+  const title = `今日のおすすめ：${book.title}`;
+  const options = { body: book.author ? `${book.author} / ${book.genre}` : book.genre, icon: book.cover || undefined, tag: "library-recommendation" };
+  const reg = await navigator.serviceWorker?.ready.catch(() => null);
+  if (reg?.showNotification) reg.showNotification(title, options);
+  else new Notification(title, options);
+}
+
+let recommendationTimer = null;
+function startRecommendationDelivery() {
+  const settings = loadRecSettings();
+  if (!settings.enabled) return;
+  clearInterval(recommendationTimer);
+  recommendationTimer = setInterval(() => loadAndShowRecommendations(true), 1000 * 60 * 60 * 24);
+}
+
+$("#recommendBtn").addEventListener("click", () => { show("#recommendSheet"); refreshGenreControls(); loadAndShowRecommendations(false); });
+$("#loadRecommendations").addEventListener("click", () => loadAndShowRecommendations(false));
+$("#enableRecommendations").addEventListener("click", async () => {
+  const settings = { enabled: true, genre: $("#recommendGenre").value || "" };
+  saveRecSettings(settings);
+  await loadAndShowRecommendations(true);
+  startRecommendationDelivery();
+  toast("おすすめ通知を有効にしました");
+});
+
 /* ================================================================
    Sheet open/close helpers
 ================================================================ */
@@ -718,7 +943,7 @@ function hide(sel) { $(sel).classList.add("hidden");    document.body.style.over
 document.addEventListener("click", (e) => {
   const closer = e.target.closest("[data-close]");
   if (!closer) return;
-  const sheet = closer.closest("#scanSheet, #editSheet, #exportSheet");
+  const sheet = closer.closest("#scanSheet, #editSheet, #exportSheet, #recommendSheet");
   if (!sheet) return;
   if (sheet.id === "scanSheet") closeScanSheet();
   else hide("#" + sheet.id);
@@ -729,6 +954,7 @@ document.addEventListener("keydown", (e) => {
     if (!$("#scanSheet").classList.contains("hidden")) closeScanSheet();
     else if (!$("#editSheet").classList.contains("hidden")) hide("#editSheet");
     else if (!$("#exportSheet").classList.contains("hidden")) hide("#exportSheet");
+    else if (!$("#recommendSheet").classList.contains("hidden")) hide("#recommendSheet");
   }
 });
 
@@ -737,6 +963,8 @@ document.addEventListener("keydown", (e) => {
 ================================================================ */
 $("#searchInput").addEventListener("input", render);
 $("#sortSelect").addEventListener("change", render);
+$("#genreFilter").addEventListener("change", render);
+$("#clearFilters").addEventListener("click", () => { $("#searchInput").value = ""; $("#genreFilter").value = ""; render(); });
 
 /* ================================================================
    Service Worker
@@ -751,6 +979,7 @@ if ("serviceWorker" in navigator) {
    Boot
 ================================================================ */
 render();
+startRecommendationDelivery();
 </script>
 </body>
 </html>
