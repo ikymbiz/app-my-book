@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F5F1E8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="蔵書">
+<title>蔵書 — My Personal Library</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%23F5F1E8'/><text x='96' y='130' text-anchor='middle' font-family='serif' font-size='120' fill='%238B2E2A'>蔵</text></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          parchment: '#F5F1E8',
+          paper:     '#FFFCF5',
+          ink:       '#1A1410',
+          sepia:     '#5C4F44',
+          burgundy:  '#8B2E2A',
+          burgundy2: '#6E2421',
+          aged:      '#D4C9B4',
+          forest:    '#5A6B3E',
+        },
+        fontFamily: {
+          mincho: ['"Shippori Mincho B1"', 'serif'],
+          cormorant: ['"Cormorant Garamond"', 'serif'],
+          sans: ['"Noto Sans JP"', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  :root { color-scheme: light; }
+  html, body { background: #F5F1E8; }
+  body {
+    font-family: "Noto Sans JP", sans-serif;
+    color: #1A1410;
+    /* subtle paper texture */
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(139,46,42,0.04), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(90,107,62,0.04), transparent 40%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.06 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-attachment: fixed;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .display-serif { font-family: "Shippori Mincho B1", serif; letter-spacing: 0.02em; }
+  .label-italic { font-family: "Cormorant Garamond", serif; font-style: italic; letter-spacing: 0.04em; }
+
+  /* book card */
+  .book-card {
+    background: #FFFCF5;
+    border: 1px solid #D4C9B4;
+    box-shadow:
+      0 1px 0 rgba(26,20,16,0.04),
+      0 8px 20px -12px rgba(26,20,16,0.18);
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .book-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -16px rgba(26,20,16,0.28); }
+
+  .cover-shadow {
+    box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 10px 20px -10px rgba(0,0,0,.32);
+  }
+
+  /* fab */
+  .fab {
+    background: linear-gradient(180deg, #9C3531 0%, #8B2E2A 60%, #6E2421 100%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.18) inset,
+      0 -2px 0 rgba(0,0,0,0.15) inset,
+      0 12px 30px -8px rgba(110,36,33,0.55);
+  }
+  .fab:active { transform: translateY(1px); }
+
+  /* sheet */
+  .sheet {
+    background: #FFFCF5;
+    border-top: 1px solid #D4C9B4;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -10px 40px -10px rgba(26,20,16,0.3);
+  }
+  .sheet-handle {
+    width: 44px; height: 4px; border-radius: 4px;
+    background: #D4C9B4;
+    margin: 10px auto 4px;
+  }
+
+  /* inputs */
+  .field {
+    background: #FAF7EF;
+    border: 1px solid #D4C9B4;
+    border-radius: 10px;
+    padding: 10px 12px;
+    width: 100%;
+    color: #1A1410;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .field:focus { outline: none; border-color: #8B2E2A; box-shadow: 0 0 0 3px rgba(139,46,42,0.12); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 16px; border-radius: 10px; font-weight: 500;
+    transition: transform .1s ease, background .15s ease, color .15s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: #8B2E2A; color: #FFFCF5; }
+  .btn-primary:hover { background: #6E2421; }
+  .btn-ghost { background: transparent; color: #5C4F44; border: 1px solid #D4C9B4; }
+  .btn-ghost:hover { background: #F5F1E8; color: #1A1410; }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    padding: 10px 18px; border-radius: 999px;
+    background: #1A1410; color: #FFFCF5; font-size: 14px;
+    z-index: 80; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -6px); }
+  .toast.error { background: #8B2E2A; }
+
+  /* scanner */
+  #reader { width: 100%; border-radius: 16px; overflow: hidden; background: #1A1410; }
+  #reader video { border-radius: 16px; }
+  .scan-frame {
+    position: absolute; inset: 0; pointer-events: none;
+    display: grid; place-items: center;
+  }
+  .scan-frame::before {
+    content: ""; width: 78%; height: 28%;
+    border: 2px solid rgba(255,252,245,0.85);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+  }
+
+  /* divider with title */
+  .rule {
+    display: flex; align-items: center; gap: 12px;
+    color: #5C4F44; font-family: "Cormorant Garamond", serif; font-style: italic;
+  }
+  .rule::before, .rule::after {
+    content: ""; flex: 1; height: 1px; background: #D4C9B4;
+  }
+
+  /* empty state */
+  .empty {
+    border: 1px dashed #D4C9B4; border-radius: 16px;
+    padding: 40px 20px; text-align: center; color: #5C4F44;
+    background: rgba(255,252,245,0.6);
+  }
+
+  /* fade-in */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+  .fade-up { animation: fadeUp .35s ease both; }
+
+  /* select */
+  select.field { appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%235C4F44' d='M6 8L0 0h12z'/></svg>");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+  }
+
+  /* hide scrollbar in horizontal lists */
+  .no-sb::-webkit-scrollbar { display: none; }
+
+  /* make modals scrollable on small screens */
+  .sheet-body { max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ============== HEADER ============== -->
+<header class="px-5 pt-6 pb-3">
+  <div class="flex items-baseline justify-between">
+    <div>
+      <p class="label-italic text-sepia text-sm">My Personal Library</p>
+      <h1 class="display-serif text-3xl text-ink leading-tight">蔵書</h1>
+    </div>
+    <button id="exportBtn" class="btn btn-ghost text-sm" aria-label="エクスポート">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      書き出し
+    </button>
+  </div>
+</header>
+
+<!-- ============== TOOLBAR ============== -->
+<section class="px-5 pb-2">
+  <div class="flex items-center gap-2">
+    <div class="relative flex-1">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-sepia" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" class="field pl-9" placeholder="タイトル・著者で絞り込む" autocomplete="off">
+    </div>
+    <select id="sortSelect" class="field w-auto">
+      <option value="addedDesc">登録が新しい順</option>
+      <option value="addedAsc">登録が古い順</option>
+      <option value="readDesc">読んだ日が新しい順</option>
+      <option value="readAsc">読んだ日が古い順</option>
+      <option value="titleAsc">タイトル順</option>
+    </select>
+  </div>
+  <p id="counter" class="label-italic text-sepia text-xs mt-2 ml-1"></p>
+</section>
+
+<!-- ============== LIST ============== -->
+<main id="list" class="px-5 pb-40 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3"></main>
+
+<!-- ============== EMPTY ============== -->
+<template id="emptyTpl">
+  <div class="empty mx-5 fade-up">
+    <p class="display-serif text-2xl text-ink mb-1">まだ一冊もありません</p>
+    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、本のバーコードをスキャンしてみましょう。</p>
+  </div>
+</template>
+
+<!-- ============== FAB ============== -->
+<button id="fab" aria-label="本を追加"
+  class="fab fixed right-5 z-30 w-16 h-16 rounded-full text-paper grid place-items-center"
+  style="bottom: calc(24px + env(safe-area-inset-bottom));">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- ============== SCAN SHEET ============== -->
+<div id="scanSheet" class="fixed inset-0 z-40 hidden">
+  <div class="absolute inset-0 bg-ink/40" data-close></div>
+  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
+    <div class="sheet-handle"></div>
+    <div class="px-5 pb-6 pt-2">
+      <div class="flex items-baseline justify-between mb-3">
+        <div>
+          <p class="label-italic text-sepia text-sm">Scan</p>
+          <h2 class="display-serif text-2xl">バーコードを読み取る</h2>
+        </div>
+        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
+      </div>
+
+      <div class="relative">
+        <div id="reader"></div>
+        <div class="scan-frame"></div>
+      </div>
+      <p id="scanStatus" class="text-sm text-sepia text-center mt-3">カメラを起動しています…</p>
+
+      <div class="mt-4 rule">or enter manually</div>
+
+      <div class="mt-3 flex gap-2">
+        <input id="manualIsbn" inputmode="text" pattern="[0-9Xx\- ]*" class="field flex-1" placeholder="ISBN（13桁または10桁）">
+        <button id="manualLookup" class="btn btn-primary">取得</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== EDIT SHEET ============== -->
+<div id="editSheet" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-ink/40" data-close></div>
+  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
+    <div class="sheet-handle"></div>
+    <div class="px-5 pb-7 pt-2">
+      <div class="flex items-baseline justify-between mb-3">
+        <div>
+          <p class="label-italic text-sepia text-sm" id="editKicker">New entry</p>
+          <h2 class="display-serif text-2xl" id="editTitle">本の情報</h2>
+        </div>
+        <button class="btn btn-ghost text-sm" data-close>キャンセル</button>
+      </div>
+
+      <div class="flex gap-4">
+        <img id="editCover" alt="" class="w-24 h-36 object-cover rounded-md cover-shadow bg-aged" onerror="this.style.background='#D4C9B4';this.removeAttribute('src');">
+        <div class="flex-1 min-w-0">
+          <label class="label-italic text-xs text-sepia">Title</label>
+          <input id="fTitle" class="field mt-1" placeholder="タイトル">
+          <label class="label-italic text-xs text-sepia mt-3 block">Author</label>
+          <input id="fAuthor" class="field mt-1" placeholder="著者名">
+          <label class="label-italic text-xs text-sepia mt-3 block">ISBN</label>
+          <input id="fIsbn" class="field mt-1" placeholder="ISBN" readonly>
+        </div>
+      </div>
+
+      <label class="label-italic text-xs text-sepia mt-4 block">Read date — 読んだ日（任意）</label>
+      <input id="fReadAt" type="date" class="field mt-1">
+
+      <label class="label-italic text-xs text-sepia mt-3 block">Comment — コメント</label>
+      <textarea id="fComment" rows="3" class="field mt-1" placeholder="気になった箇所、感想、再読メモなど…"></textarea>
+
+      <div class="flex items-center gap-2 mt-5">
+        <button id="deleteBtn" class="btn btn-ghost text-burgundy hidden" style="border-color:#E0BCBA">削除</button>
+        <div class="flex-1"></div>
+        <button id="saveBtn" class="btn btn-primary">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== EXPORT SHEET ============== -->
+<div id="exportSheet" class="fixed inset-0 z-40 hidden">
+  <div class="absolute inset-0 bg-ink/40" data-close></div>
+  <div class="sheet absolute bottom-0 left-0 right-0">
+    <div class="sheet-handle"></div>
+    <div class="px-5 pb-7 pt-2">
+      <div class="flex items-baseline justify-between mb-3">
+        <div>
+          <p class="label-italic text-sepia text-sm">Export</p>
+          <h2 class="display-serif text-2xl">データを書き出す</h2>
+        </div>
+        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
+      </div>
+      <p class="text-sm text-sepia mb-4">保存されている全データをファイルとして書き出します。</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="exportJson" class="btn btn-primary">JSON で保存</button>
+        <button id="exportCsv" class="btn btn-ghost">CSV で保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== TOAST ============== -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- ============== APP ============== -->
+<script>
+/* ================================================================
+   Storage
+================================================================ */
+const STORE_KEY = "library.books.v1";
+const loadBooks = () => {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch { return []; }
+};
+const saveBooks = (arr) => localStorage.setItem(STORE_KEY, JSON.stringify(arr));
+
+let books = loadBooks();
+let editingId = null;       // id of book being edited (null = new)
+let scanner = null;         // Html5Qrcode instance
+let lastScanned = "";       // dedupe
+let lastScanAt = 0;
+let scanBusy = false;       // prevent concurrent lookups from rapid scans
+
+/* ================================================================
+   Utilities
+================================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fmtDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+};
+const escapeHtml = (s) => (s ?? "").toString()
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+const toast = (msg, type = "ok") => {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("error", type === "error");
+  t.classList.add("show");
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove("show"), 2200);
+};
+
+/* ================================================================
+   ISBN validation & normalisation
+================================================================ */
+function normalizeIsbn(raw) {
+  if (!raw) return "";
+  const s = raw.replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (s.length === 13 && /^\d{13}$/.test(s) && isValidIsbn13(s)) return s;
+  if (s.length === 10 && /^\d{9}[0-9X]$/.test(s) && isValidIsbn10(s)) return isbn10to13(s);
+  return "";
+}
+function isValidIsbn10(isbn10) {
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    const ch = isbn10[i];
+    const n = ch === "X" ? 10 : parseInt(ch, 10);
+    if (Number.isNaN(n)) return false;
+    sum += n * (10 - i);
+  }
+  return sum % 11 === 0;
+}
+function isValidIsbn13(isbn13) {
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += parseInt(isbn13[i], 10) * (i % 2 === 0 ? 1 : 3);
+  const check = (10 - (sum % 10)) % 10;
+  return check === parseInt(isbn13[12], 10);
+}
+function isbn10to13(isbn10) {
+  const core = "978" + isbn10.slice(0, 9);
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += parseInt(core[i],10) * (i % 2 === 0 ? 1 : 3);
+  const check = (10 - (sum % 10)) % 10;
+  return core + check;
+}
+
+/* ================================================================
+   Book lookup — OpenBD first, Google Books fallback
+================================================================ */
+async function lookupBook(isbn) {
+  const tryOpenBD = async () => {
+    const r = await fetch(`https://api.openbd.jp/v1/get?isbn=${encodeURIComponent(isbn)}`);
+    if (!r.ok) throw new Error("openbd " + r.status);
+    const arr = await r.json();
+    const it = arr?.[0];
+    if (!it || !it.summary) return null;
+    return {
+      title:  it.summary.title  || "",
+      author: it.summary.author || "",
+      cover:  it.summary.cover  || "",
+      source: "openbd",
+    };
+  };
+  const tryGoogle = async () => {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`);
+    if (!r.ok) throw new Error("google " + r.status);
+    const j = await r.json();
+    const v = j?.items?.[0]?.volumeInfo;
+    if (!v) return null;
+    return {
+      title:  v.title || "",
+      author: (v.authors || []).join(", "),
+      cover:  (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
+      source: "google",
+    };
+  };
+
+  try {
+    const a = await tryOpenBD();
+    if (a && a.title) return a;
+  } catch (e) { console.warn(e); }
+  try {
+    const b = await tryGoogle();
+    if (b && b.title) return b;
+  } catch (e) { console.warn(e); }
+  return null;
+}
+
+/* ================================================================
+   Render list
+================================================================ */
+function getFiltered() {
+  const q = $("#searchInput").value.trim().toLowerCase();
+  const sort = $("#sortSelect").value;
+  let arr = books.filter(b => {
+    if (!q) return true;
+    return (b.title || "").toLowerCase().includes(q)
+        || (b.author || "").toLowerCase().includes(q);
+  });
+  const cmp = {
+    addedDesc: (a, b) => (b.addedAt || "").localeCompare(a.addedAt || ""),
+    addedAsc:  (a, b) => (a.addedAt || "").localeCompare(b.addedAt || ""),
+    readDesc:  (a, b) => (b.readAt  || "").localeCompare(a.readAt  || ""),
+    readAsc:   (a, b) => (a.readAt  || "").localeCompare(b.readAt  || ""),
+    titleAsc:  (a, b) => (a.title   || "").localeCompare(b.title  || "", "ja"),
+  }[sort];
+  return arr.sort(cmp);
+}
+
+function render() {
+  const list = $("#list");
+  list.innerHTML = "";
+  const filtered = getFiltered();
+
+  $("#counter").textContent = books.length === 0
+    ? ""
+    : `${filtered.length} / ${books.length} 冊`;
+
+  if (books.length === 0) {
+    list.innerHTML = "";
+    list.appendChild($("#emptyTpl").content.cloneNode(true));
+    return;
+  }
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty col-span-full">該当する本はありません。</div>`;
+    return;
+  }
+
+  for (const b of filtered) {
+    const el = document.createElement("article");
+    el.className = "book-card rounded-xl p-3 flex gap-3 fade-up cursor-pointer";
+    el.dataset.id = b.id;
+    el.innerHTML = `
+      <div class="shrink-0">
+        ${b.cover
+          ? `<img src="${escapeHtml(b.cover)}" alt="" class="w-16 h-24 object-cover rounded-md cover-shadow bg-aged" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs',textContent:'No Cover'}))">`
+          : `<div class="w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs">No Cover</div>`}
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="display-serif text-ink text-base leading-snug line-clamp-3">${escapeHtml(b.title || "（無題）")}</p>
+        <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author || "")}</p>
+        ${b.readAt ? `<p class="label-italic text-xs text-burgundy mt-2">read · ${fmtDate(b.readAt)}</p>` : ""}
+        ${b.comment ? `<p class="text-sepia text-xs mt-1 line-clamp-2">“${escapeHtml(b.comment)}”</p>` : ""}
+      </div>
+    `;
+    el.addEventListener("click", () => openEditSheet(b.id));
+    list.appendChild(el);
+  }
+}
+
+/* ================================================================
+   Edit sheet
+================================================================ */
+function openEditSheet(id, prefill = null) {
+  editingId = id;
+  const b = id ? books.find(x => x.id === id) : prefill;
+  $("#editKicker").textContent = id ? "Edit entry" : "New entry";
+  $("#editTitle").textContent  = id ? "本の情報を編集" : "本の情報";
+  $("#fTitle").value   = b?.title   || "";
+  $("#fAuthor").value  = b?.author  || "";
+  $("#fIsbn").value    = b?.isbn    || "";
+  $("#fReadAt").value  = b?.readAt  || "";
+  $("#fComment").value = b?.comment || "";
+  const cov = $("#editCover");
+  if (b?.cover) { cov.src = b.cover; cov.style.background = ""; }
+  else          { cov.removeAttribute("src"); cov.style.background = "#D4C9B4"; }
+
+  $("#deleteBtn").classList.toggle("hidden", !id);
+  show("#editSheet");
+}
+
+$("#saveBtn").addEventListener("click", () => {
+  const title  = $("#fTitle").value.trim();
+  const author = $("#fAuthor").value.trim();
+  const isbn   = $("#fIsbn").value.trim();
+  const readAt = $("#fReadAt").value || "";
+  const comment= $("#fComment").value.trim();
+  const cover  = $("#editCover").getAttribute("src") || "";
+
+  if (!title) { toast("タイトルを入力してください", "error"); return; }
+
+  if (editingId) {
+    const i = books.findIndex(b => b.id === editingId);
+    if (i >= 0) {
+      books[i] = { ...books[i], title, author, isbn, readAt, comment, cover };
+    }
+  } else {
+    books.unshift({
+      id: uid(),
+      title, author, isbn, readAt, comment, cover,
+      addedAt: new Date().toISOString(),
+    });
+  }
+  saveBooks(books);
+  hide("#editSheet");
+  render();
+  toast(editingId ? "更新しました" : "本棚に追加しました");
+  editingId = null;
+});
+
+$("#deleteBtn").addEventListener("click", () => {
+  if (!editingId) return;
+  const b = books.find(x => x.id === editingId);
+  if (!b) return;
+  if (!confirm(`「${b.title}」を削除しますか？`)) return;
+  books = books.filter(x => x.id !== editingId);
+  saveBooks(books);
+  hide("#editSheet");
+  render();
+  toast("削除しました");
+  editingId = null;
+});
+
+/* ================================================================
+   Scan sheet
+================================================================ */
+$("#fab").addEventListener("click", () => openScanSheet());
+
+async function openScanSheet() {
+  show("#scanSheet");
+  $("#scanStatus").textContent = "カメラを起動しています…";
+  $("#manualIsbn").value = "";
+  lastScanned = ""; lastScanAt = 0; scanBusy = false;
+
+  try {
+    if (!scanner) scanner = new Html5Qrcode("reader", { verbose: false });
+    await scanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 12,
+        qrbox: (vw, vh) => {
+          const w = Math.min(vw * 0.78, 420);
+          const h = Math.min(vh * 0.28, 160);
+          return { width: w, height: h };
+        },
+        aspectRatio: 1.6,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+        ],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      },
+      onScanSuccess,
+      () => { /* swallow per-frame errors */ }
+    );
+    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください";
+  } catch (err) {
+    console.error(err);
+    $("#scanStatus").textContent = "カメラを起動できませんでした。HTTPS環境で、カメラの利用を許可してください。";
+  }
+}
+
+async function closeScanSheet() {
+  hide("#scanSheet");
+  if (scanner) {
+    try { await scanner.stop(); } catch {}
+    try { scanner.clear(); } catch {}
+    scanner = null;
+  }
+  scanBusy = false;
+}
+
+async function onScanSuccess(decoded) {
+  if (scanBusy) return;
+  const now = Date.now();
+  if (decoded === lastScanned && now - lastScanAt < 2500) return;
+  lastScanned = decoded; lastScanAt = now;
+
+  const isbn = normalizeIsbn(decoded);
+  if (!isbn || !(isbn.startsWith("978") || isbn.startsWith("979"))) {
+    $("#scanStatus").textContent = `読み取り：${decoded}（書籍のISBNではないようです）`;
+    return;
+  }
+  $("#scanStatus").textContent = `読み取り成功：${isbn} を検索しています…`;
+  scanBusy = true;
+  await handleIsbn(isbn);
+}
+
+async function handleIsbn(isbn) {
+  // already in library?
+  const exists = books.find(b => b.isbn === isbn);
+  if (exists) {
+    await closeScanSheet();
+    toast("既に登録されています");
+    openEditSheet(exists.id);
+    return;
+  }
+  const meta = await lookupBook(isbn);
+  await closeScanSheet();
+  if (!meta) {
+    toast("書籍情報が見つかりませんでした", "error");
+    openEditSheet(null, { isbn });
+    return;
+  }
+  openEditSheet(null, { isbn, ...meta });
+}
+
+$("#manualLookup").addEventListener("click", async () => {
+  if (scanBusy) return;
+  const raw = $("#manualIsbn").value;
+  const isbn = normalizeIsbn(raw);
+  if (!isbn) { toast("ISBNの形式が正しくありません", "error"); return; }
+  $("#scanStatus").textContent = `${isbn} を検索しています…`;
+  scanBusy = true;
+  await handleIsbn(isbn);
+});
+
+/* ================================================================
+   Export
+================================================================ */
+$("#exportBtn").addEventListener("click", () => {
+  if (books.length === 0) { toast("書き出すデータがありません", "error"); return; }
+  show("#exportSheet");
+});
+
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+};
+
+$("#exportJson").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
+  downloadBlob(blob, `library-${today()}.json`);
+  hide("#exportSheet");
+  toast("JSONを書き出しました");
+});
+
+$("#exportCsv").addEventListener("click", () => {
+  const cols = ["id","title","author","isbn","readAt","addedAt","comment","cover"];
+  const esc = (v) => {
+    const s = (v ?? "").toString().replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const lines = [cols.join(",")];
+  for (const b of books) lines.push(cols.map(c => esc(b[c])).join(","));
+  // BOM for Excel friendliness
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv" });
+  downloadBlob(blob, `library-${today()}.csv`);
+  hide("#exportSheet");
+  toast("CSVを書き出しました");
+});
+
+/* ================================================================
+   Sheet open/close helpers
+================================================================ */
+function show(sel) { $(sel).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+function hide(sel) { $(sel).classList.add("hidden");    document.body.style.overflow = ""; }
+
+document.addEventListener("click", (e) => {
+  const closer = e.target.closest("[data-close]");
+  if (!closer) return;
+  const sheet = closer.closest("#scanSheet, #editSheet, #exportSheet");
+  if (!sheet) return;
+  if (sheet.id === "scanSheet") closeScanSheet();
+  else hide("#" + sheet.id);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!$("#scanSheet").classList.contains("hidden")) closeScanSheet();
+    else if (!$("#editSheet").classList.contains("hidden")) hide("#editSheet");
+    else if (!$("#exportSheet").classList.contains("hidden")) hide("#exportSheet");
+  }
+});
+
+/* ================================================================
+   Filter / sort triggers
+================================================================ */
+$("#searchInput").addEventListener("input", render);
+$("#sortSelect").addEventListener("change", render);
+
+/* ================================================================
+   Service Worker
+================================================================ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(err => console.warn("SW register failed:", err));
+  });
+}
+
+/* ================================================================
+   Boot
+================================================================ */
+render();
+</script>
+</body>
+</html>
