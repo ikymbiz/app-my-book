@@ -700,29 +700,73 @@ function scanConfig() {
 }
 
 async function startScanner(cameraId = null) {
+  const status = $("#scanStatus");
   try {
+    if (!window.isSecureContext) {
+      throw new Error("INSECURE_CONTEXT: カメラはHTTPSまたはlocalhostでのみ使えます");
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("GET_USER_MEDIA_UNAVAILABLE: このブラウザ/表示環境ではカメラAPIが使えません。アプリ内ブラウザやiframeの場合は外部Chromeで開いてください");
+    }
     if (!window.Html5Qrcode) throw new Error("html5-qrcode is not loaded");
+
     if (scanner) { try { await scanner.stop(); } catch {} try { scanner.clear(); } catch {} }
-    scanner = new Html5Qrcode("reader", { verbose: false });
-    let cameraConfig = cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" };
 
+    // 先にブラウザへ直接カメラ許可を要求する。Android Chromeでラベル取得や背面選択が安定します。
     try {
-      const cameras = await Html5Qrcode.getCameras();
-      const select = $("#cameraSelect");
-      if (cameras && cameras.length > 1 && select) {
-        select.classList.remove("hidden");
-        select.innerHTML = cameras.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label || "Camera")}</option>`).join("");
-        const back = cameras.find(c => /back|rear|environment|背面|アウト/i.test(c.label || ""));
-        if (!cameraId && back) cameraConfig = { deviceId: { exact: back.id } };
-        select.value = cameraId || back?.id || cameras[0].id;
-      }
-    } catch {}
+      const warmup = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      warmup.getTracks().forEach(t => t.stop());
+    } catch (permissionErr) {
+      throw new Error(`CAMERA_PERMISSION_FAILED: ${permissionErr.name || permissionErr.message || permissionErr}`);
+    }
 
-    await scanner.start(cameraConfig, scanConfig(), onScanSuccess, () => {});
-    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください。読めない場合は手入力またはバーコードなしで追加してください。";
+    let cameras = [];
+    try { cameras = await Html5Qrcode.getCameras(); } catch {}
+    const select = $("#cameraSelect");
+    const back = cameras.find(c => /back|rear|environment|背面|アウト|後面|0$/i.test(c.label || ""));
+    const chosenId = cameraId || back?.id || cameras[0]?.id || null;
+
+    if (select && cameras.length > 0) {
+      select.classList.toggle("hidden", cameras.length <= 1);
+      select.innerHTML = cameras.map((c, i) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label || `カメラ ${i + 1}`)}</option>`).join("");
+      if (chosenId) select.value = chosenId;
+    }
+
+    scanner = new Html5Qrcode("reader", { verbose: false });
+
+    // html5-qrcodeは端末によって constraint 指定より cameraId 文字列指定の方が安定します。
+    const attempts = [];
+    if (chosenId) attempts.push(chosenId);
+    attempts.push({ facingMode: { ideal: "environment" } });
+    attempts.push({ facingMode: "environment" });
+    attempts.push({ facingMode: "user" });
+
+    let lastError = null;
+    for (const cfg of attempts) {
+      try {
+        await scanner.start(cfg, scanConfig(), onScanSuccess, () => {});
+        status.textContent = "本のISBNバーコードを枠内に収めてください。読めない場合は手入力またはバーコードなしで追加してください。";
+        return;
+      } catch (e) {
+        lastError = e;
+        try { await scanner.stop(); } catch {}
+        try { scanner.clear(); } catch {}
+        scanner = new Html5Qrcode("reader", { verbose: false });
+      }
+    }
+    throw lastError || new Error("NO_CAMERA_START_ATTEMPT_SUCCEEDED");
   } catch (err) {
     console.error(err);
-    $("#scanStatus").textContent = "カメラを起動できませんでした。HTTPS環境でカメラを許可するか、ISBN手入力/バーコードなし追加を使ってください。";
+    const msg = String(err?.message || err?.name || err || "");
+    if (/NotAllowed|Permission|CAMERA_PERMISSION_FAILED/i.test(msg)) {
+      status.textContent = "カメラ許可がブロックされています。Chromeのサイト設定でカメラを許可してから『カメラ再試行』を押してください。";
+    } else if (/NotFound|DevicesNotFound|Overconstrained/i.test(msg)) {
+      status.textContent = "利用できるカメラが見つかりませんでした。別のカメラを選ぶか、ISBN手入力/バーコードなし追加を使ってください。";
+    } else if (/INSECURE_CONTEXT|GET_USER_MEDIA_UNAVAILABLE/i.test(msg)) {
+      status.textContent = "この表示環境ではカメラAPIが使えません。HTTPSの公開URLを外部Chromeで直接開いてください。";
+    } else {
+      status.textContent = `カメラを起動できませんでした：${msg || "不明なエラー"}`;
+    }
   }
 }
 
