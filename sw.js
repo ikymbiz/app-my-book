@@ -5,7 +5,7 @@
    - Book APIs (openbd / google books): network-first w/ short cache
    - Cover images: cache-first
 ================================================================ */
-const VERSION = "v1.1.0";
+const VERSION = "v1.0.3";
 const SHELL_CACHE = `library-shell-${VERSION}`;
 const RUNTIME_CACHE = `library-runtime-${VERSION}`;
 const IMAGE_CACHE = `library-images-${VERSION}`;
@@ -20,11 +20,7 @@ const SHELL_ASSETS = [
 /* ---------- install ---------- */
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      Promise.all(SHELL_ASSETS.map((asset) =>
-        cache.add(asset).catch((err) => console.warn("SW shell cache skipped:", asset, err))
-      ))
-    )
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -62,10 +58,8 @@ self.addEventListener("fetch", (event) => {
   if (isNavRequest(req)) {
     event.respondWith(
       fetch(req).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(SHELL_CACHE).then((c) => c.put("./index.html", copy)).catch(()=>{});
-        }
+        const copy = res.clone();
+        caches.open(SHELL_CACHE).then((c) => c.put("./index.html", copy)).catch(()=>{});
         return res;
       }).catch(() =>
         caches.match("./index.html").then((r) => r || caches.match("./"))
@@ -79,10 +73,8 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(req).then((cached) => cached ||
         fetch(req).then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy)).catch(()=>{});
-          }
+          const copy = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(req, copy)).catch(()=>{});
           return res;
         })
       )
@@ -140,19 +132,5 @@ self.addEventListener("fetch", (event) => {
   // 6) Default → try network, fall back to cache
   event.respondWith(
     fetch(req).catch(() => caches.match(req))
-  );
-});
-
-
-/* ---------- notification click ---------- */
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) return client.focus();
-      }
-      if (self.clients.openWindow) return self.clients.openWindow("./index.html");
-    })
   );
 });

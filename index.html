@@ -177,18 +177,21 @@
   /* make modals scrollable on small screens */
   .sheet-body { max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-  .help-panel {
-    background: rgba(255,252,245,0.85);
-    border: 1px solid #D4C9B4;
-    border-radius: 14px;
-    padding: 12px;
-    color: #5C4F44;
-  }
-  .help-panel strong { color: #1A1410; }
-  .help-panel ol { padding-left: 1.25rem; }
-  .help-panel li { margin: 6px 0; }
-  .mini-note { font-size: 12px; color: #5C4F44; line-height: 1.65; }
 
+  .guide-box {
+    border: 1px solid #D4C9B4;
+    background: #FAF7EF;
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .guide-box ol { list-style: decimal; padding-left: 1.25rem; }
+  .guide-box li { margin: 6px 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid #D4C9B4; border-radius: 999px;
+    padding: 4px 10px; background: #FAF7EF; color: #5C4F44;
+    font-size: 12px;
+  }
 </style>
 </head>
 <body class="min-h-screen">
@@ -200,36 +203,35 @@
       <p class="label-italic text-sepia text-sm">My Personal Library</p>
       <h1 class="display-serif text-3xl text-ink leading-tight">蔵書</h1>
     </div>
-    <div class="flex items-center gap-2">
-    <button id="recommendBtn" class="btn btn-primary text-sm" aria-label="おすすめ">おすすめ</button>
     <button id="exportBtn" class="btn btn-ghost text-sm" aria-label="エクスポート">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       書き出し
     </button>
-    </div>
   </div>
 </header>
 
 <!-- ============== TOOLBAR ============== -->
 <section class="px-5 pb-2">
-  <div class="flex items-center gap-2">
-    <div class="relative flex-1">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-sepia" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="searchInput" class="field pl-9" placeholder="タイトル・著者で絞り込む" autocomplete="off">
+  <div class="grid grid-cols-1 gap-2">
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-sepia" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="searchInput" class="field pl-9" placeholder="タイトル・著者・ジャンルで絞り込む" autocomplete="off">
+      </div>
+      <select id="sortSelect" class="field w-auto">
+        <option value="addedDesc">登録が新しい順</option>
+        <option value="addedAsc">登録が古い順</option>
+        <option value="readDesc">読んだ日が新しい順</option>
+        <option value="readAsc">読んだ日が古い順</option>
+        <option value="titleAsc">タイトル順</option>
+      </select>
     </div>
-    <select id="sortSelect" class="field w-auto">
-      <option value="addedDesc">登録が新しい順</option>
-      <option value="addedAsc">登録が古い順</option>
-      <option value="readDesc">読んだ日が新しい順</option>
-      <option value="readAsc">読んだ日が古い順</option>
-      <option value="titleAsc">タイトル順</option>
-    </select>
-  </div>
-  <div class="mt-2 flex items-center gap-2">
-    <select id="genreFilter" class="field flex-1">
-      <option value="">すべてのジャンル</option>
-    </select>
-    <button id="clearFilters" class="btn btn-ghost text-sm">解除</button>
+    <div class="flex items-center gap-2">
+      <select id="genreFilter" class="field flex-1">
+        <option value="">すべてのジャンル</option>
+      </select>
+      <button id="recommendBtn" class="btn btn-ghost text-sm whitespace-nowrap">おすすめ</button>
+    </div>
   </div>
   <p id="counter" class="label-italic text-sepia text-xs mt-2 ml-1"></p>
 </section>
@@ -241,7 +243,7 @@
 <template id="emptyTpl">
   <div class="empty mx-5 fade-up">
     <p class="display-serif text-2xl text-ink mb-1">まだ一冊もありません</p>
-    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、バーコードまたは手入力で本を追加できます。</p>
+    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、バーコード読み取りまたは手入力で追加できます。</p>
   </div>
 </template>
 
@@ -266,38 +268,35 @@
         <button class="btn btn-ghost text-sm" data-close>閉じる</button>
       </div>
 
-      <div class="mb-3">
-        <select id="cameraSelect" class="field hidden" aria-label="カメラを選択"></select>
-      </div>
       <div class="relative">
         <div id="reader"></div>
         <div class="scan-frame"></div>
       </div>
       <p id="scanStatus" class="text-sm text-sepia text-center mt-3">カメラを起動しています…</p>
-      <div id="cameraHelp" class="help-panel mt-3 hidden">
-        <p class="font-semibold text-ink mb-1">カメラが起動しないとき</p>
-        <ol class="text-sm">
-          <li>画面上のアドレスバー左にある <strong>設定アイコン</strong> を押します。</li>
-          <li><strong>権限</strong> または <strong>サイトの設定</strong> を開き、<strong>カメラを許可</strong> にします。</li>
-          <li>ページを再読み込みして、もう一度 <strong>＋ → カメラ再試行</strong> を押します。</li>
+
+      <div id="cameraGuide" class="guide-box mt-3 hidden text-sm text-sepia">
+        <p class="font-semibold text-ink mb-2">カメラが起動しない場合</p>
+        <ol>
+          <li>Chromeのアドレスバー左のアイコンをタップ</li>
+          <li>「権限」または「サイトの設定」を開く</li>
+          <li>「カメラ」を「許可」に変更</li>
+          <li>このページを再読み込みして、もう一度＋を押す</li>
         </ol>
-        <p class="mini-note mt-2">Android Chromeの場合：︙ → 設定 → サイトの設定 → カメラ → このサイトを許可。</p>
         <div class="grid grid-cols-2 gap-2 mt-3">
-          <button id="copyPageUrl" class="btn btn-ghost text-sm">URLをコピー</button>
-          <a id="openThisPage" class="btn btn-ghost text-sm" target="_blank" rel="noopener">別タブで開く</a>
+          <button id="copyUrlBtn" class="btn btn-ghost text-sm">URLをコピー</button>
+          <button id="retryCameraBtn" class="btn btn-primary text-sm">再試行</button>
         </div>
-      </div>
-      <div class="mt-3 grid grid-cols-3 gap-2">
-        <button id="retryCamera" class="btn btn-ghost text-sm">カメラ再試行</button>
-        <button id="showCameraHelp" class="btn btn-ghost text-sm">設定ガイド</button>
-        <button id="addWithoutBarcode" class="btn btn-ghost text-sm">手入力追加</button>
       </div>
 
       <div class="mt-4 rule">or enter manually</div>
 
       <div class="mt-3 flex gap-2">
-        <input id="manualIsbn" inputmode="text" pattern="[0-9Xx\- ]*" class="field flex-1" placeholder="ISBN（13桁または10桁）">
+        <input id="manualIsbn" inputmode="text" pattern="[0-9Xx-]*" class="field flex-1" placeholder="ISBN（13桁または10桁）">
         <button id="manualLookup" class="btn btn-primary">取得</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <button id="manualAddBtn" class="btn btn-ghost text-sm">バーコードなしで追加</button>
+        <button id="showGuideBtn" class="btn btn-ghost text-sm">設定ガイド</button>
       </div>
     </div>
   </div>
@@ -329,12 +328,11 @@
         </div>
       </div>
 
-      <label class="label-italic text-xs text-sepia mt-4 block">Genre — ジャンル</label>
-      <input id="fGenre" class="field mt-1" list="genreOptions" placeholder="小説、ビジネス、歴史、漫画など">
-      <datalist id="genreOptions"></datalist>
-
-      <label class="label-italic text-xs text-sepia mt-3 block">Read date — 読んだ日（任意）</label>
+      <label class="label-italic text-xs text-sepia mt-4 block">Read date — 読んだ日（任意）</label>
       <input id="fReadAt" type="date" class="field mt-1">
+
+      <label class="label-italic text-xs text-sepia mt-3 block">Genre — ジャンル</label>
+      <input id="fGenre" class="field mt-1" placeholder="例：小説、ビジネス、技術書、漫画">
 
       <label class="label-italic text-xs text-sepia mt-3 block">Comment — コメント</label>
       <textarea id="fComment" rows="3" class="field mt-1" placeholder="気になった箇所、感想、再読メモなど…"></textarea>
@@ -380,20 +378,16 @@
       <div class="flex items-baseline justify-between mb-3">
         <div>
           <p class="label-italic text-sepia text-sm">Recommendations</p>
-          <h2 class="display-serif text-2xl">おすすめ本</h2>
+          <h2 class="display-serif text-2xl">おすすめの本</h2>
         </div>
         <button class="btn btn-ghost text-sm" data-close>閉じる</button>
       </div>
-      <p class="text-sm text-sepia mb-3">ジャンルや蔵書傾向から Google Books で候補を探します。通知を許可すると、アプリを開いている間におすすめを通知できます。</p>
-      <p class="mini-note mb-3">※サーバーなしのPWAでは、アプリを完全に閉じている間の定期プッシュ配信はできません。毎日配信したい場合は、後からサーバー/Functionsを追加できます。</p>
+      <p class="text-sm text-sepia mb-3">登録済みのジャンルをもとに候補を表示します。通知はアプリを開いている間だけ使えます。</p>
       <div class="grid grid-cols-2 gap-2 mb-3">
-        <select id="recommendGenre" class="field col-span-2">
-          <option value="">ジャンルを自動で選ぶ</option>
-        </select>
-        <button id="loadRecommendations" class="btn btn-primary">おすすめを取得</button>
-        <button id="enableRecommendations" class="btn btn-ghost">通知を有効化</button>
+        <button id="loadRecommendBtn" class="btn btn-primary">おすすめ取得</button>
+        <button id="notifyRecommendBtn" class="btn btn-ghost">通知を許可</button>
       </div>
-      <div id="recommendList" class="grid grid-cols-1 gap-3"></div>
+      <div id="recommendList" class="grid grid-cols-1 gap-2"></div>
     </div>
   </div>
 </div>
@@ -407,25 +401,18 @@
    Storage
 ================================================================ */
 const STORE_KEY = "library.books.v1";
-const REC_KEY = "library.recommendations.v1";
-const DEFAULT_GENRES = ["小説","文学","漫画","ビジネス","自己啓発","歴史","科学","技術","デザイン","アート","料理","旅行","教育","児童書","ミステリー","SF","ファンタジー","エッセイ"];
 const loadBooks = () => {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
   catch { return []; }
 };
 const saveBooks = (arr) => localStorage.setItem(STORE_KEY, JSON.stringify(arr));
-const loadRecSettings = () => {
-  try { return JSON.parse(localStorage.getItem(REC_KEY)) || { enabled: false, genre: "" }; }
-  catch { return { enabled: false, genre: "" }; }
-};
-const saveRecSettings = (obj) => localStorage.setItem(REC_KEY, JSON.stringify(obj));
 
 let books = loadBooks();
 let editingId = null;       // id of book being edited (null = new)
 let scanner = null;         // Html5Qrcode instance
 let lastScanned = "";       // dedupe
 let lastScanAt = 0;
-let scanBusy = false;       // prevent concurrent lookups from rapid scans
+let cameraStarting = false;
 
 /* ================================================================
    Utilities
@@ -452,69 +439,31 @@ const toast = (msg, type = "ok") => {
   t._tid = setTimeout(() => t.classList.remove("show"), 2200);
 };
 
-const setCameraHelpVisible = (visible) => {
-  const panel = $("#cameraHelp");
-  if (panel) panel.classList.toggle("hidden", !visible);
-  const link = $("#openThisPage");
-  if (link) link.href = location.href;
-};
-
-function knownGenres() {
-  const fromBooks = books.map(b => (b.genre || "").trim()).filter(Boolean);
-  return [...new Set([...DEFAULT_GENRES, ...fromBooks])].sort((a,b) => a.localeCompare(b, "ja"));
-}
-function guessGenreFromBook(meta = {}) {
-  const text = `${meta.title || ""} ${meta.author || ""}`.toLowerCase();
-  const subjects = (meta.subjects || []).join(" ").toLowerCase();
-  const all = `${text} ${subjects}`;
-  if (/comic|manga|コミック|漫画/.test(all)) return "漫画";
-  if (/business|management|経営|ビジネス/.test(all)) return "ビジネス";
-  if (/history|歴史/.test(all)) return "歴史";
-  if (/science|科学/.test(all)) return "科学";
-  if (/technology|computer|programming|技術|プログラミング/.test(all)) return "技術";
-  if (/mystery|ミステリ/.test(all)) return "ミステリー";
-  if (/fiction|novel|小説|文学/.test(all)) return "小説";
-  return "";
-}
-function refreshGenreControls() {
-  const options = knownGenres();
-  const currentFilter = $("#genreFilter")?.value || "";
-  const currentRec = $("#recommendGenre")?.value || "";
-  const filter = $("#genreFilter");
-  if (filter) filter.innerHTML = `<option value="">すべてのジャンル</option>` + options.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
-  if (filter) filter.value = currentFilter;
-  const rec = $("#recommendGenre");
-  if (rec) rec.innerHTML = `<option value="">ジャンルを自動で選ぶ</option>` + options.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
-  if (rec) rec.value = currentRec;
-  const datalist = $("#genreOptions");
-  if (datalist) datalist.innerHTML = options.map(g => `<option value="${escapeHtml(g)}"></option>`).join("");
-}
-
 /* ================================================================
    ISBN validation & normalisation
 ================================================================ */
 function normalizeIsbn(raw) {
   if (!raw) return "";
   const s = raw.replace(/[^0-9Xx]/g, "").toUpperCase();
-  if (s.length === 13 && /^\d{13}$/.test(s) && isValidIsbn13(s)) return s;
-  if (s.length === 10 && /^\d{9}[0-9X]$/.test(s) && isValidIsbn10(s)) return isbn10to13(s);
+  if (s.length === 13 && isValidIsbn13(s)) return s;
+  if (s.length === 10 && isValidIsbn10(s)) return isbn10to13(s);
   return "";
 }
-function isValidIsbn10(isbn10) {
-  let sum = 0;
-  for (let i = 0; i < 10; i++) {
-    const ch = isbn10[i];
-    const n = ch === "X" ? 10 : parseInt(ch, 10);
-    if (Number.isNaN(n)) return false;
-    sum += n * (10 - i);
-  }
-  return sum % 11 === 0;
-}
 function isValidIsbn13(isbn13) {
+  if (!/^\d{13}$/.test(isbn13)) return false;
   let sum = 0;
   for (let i = 0; i < 12; i++) sum += parseInt(isbn13[i], 10) * (i % 2 === 0 ? 1 : 3);
   const check = (10 - (sum % 10)) % 10;
   return check === parseInt(isbn13[12], 10);
+}
+function isValidIsbn10(isbn10) {
+  if (!/^\d{9}[0-9X]$/.test(isbn10)) return false;
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    const v = isbn10[i] === "X" ? 10 : parseInt(isbn10[i], 10);
+    sum += v * (10 - i);
+  }
+  return sum % 11 === 0;
 }
 function isbn10to13(isbn10) {
   const core = "978" + isbn10.slice(0, 9);
@@ -529,7 +478,7 @@ function isbn10to13(isbn10) {
 ================================================================ */
 async function lookupBook(isbn) {
   const tryOpenBD = async () => {
-    const r = await fetch(`https://api.openbd.jp/v1/get?isbn=${encodeURIComponent(isbn)}`);
+    const r = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
     if (!r.ok) throw new Error("openbd " + r.status);
     const arr = await r.json();
     const it = arr?.[0];
@@ -542,7 +491,7 @@ async function lookupBook(isbn) {
     };
   };
   const tryGoogle = async () => {
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`);
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
     if (!r.ok) throw new Error("google " + r.status);
     const j = await r.json();
     const v = j?.items?.[0]?.volumeInfo;
@@ -551,7 +500,6 @@ async function lookupBook(isbn) {
       title:  v.title || "",
       author: (v.authors || []).join(", "),
       cover:  (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
-      subjects: v.categories || [],
       source: "google",
     };
   };
@@ -572,13 +520,15 @@ async function lookupBook(isbn) {
 ================================================================ */
 function getFiltered() {
   const q = $("#searchInput").value.trim().toLowerCase();
-  const genre = $("#genreFilter")?.value || "";
+  const selectedGenre = $("#genreFilter")?.value || "";
   const sort = $("#sortSelect").value;
   let arr = books.filter(b => {
-    if (genre && (b.genre || "") !== genre) return false;
-    if (!q) return true;
-    return (b.title || "").toLowerCase().includes(q)
-        || (b.author || "").toLowerCase().includes(q);
+    const matchesText = !q
+      || (b.title || "").toLowerCase().includes(q)
+      || (b.author || "").toLowerCase().includes(q)
+      || (b.genre || "").toLowerCase().includes(q);
+    const matchesGenre = !selectedGenre || (b.genre || "") === selectedGenre;
+    return matchesText && matchesGenre;
   });
   const cmp = {
     addedDesc: (a, b) => (b.addedAt || "").localeCompare(a.addedAt || ""),
@@ -590,8 +540,17 @@ function getFiltered() {
   return arr.sort(cmp);
 }
 
+function refreshGenreOptions() {
+  const sel = $("#genreFilter");
+  if (!sel) return;
+  const current = sel.value;
+  const genres = [...new Set(books.map(b => (b.genre || "").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ja"));
+  sel.innerHTML = `<option value="">すべてのジャンル</option>` + genres.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+  if (genres.includes(current)) sel.value = current;
+}
+
 function render() {
-  refreshGenreControls();
+  refreshGenreOptions();
   const list = $("#list");
   list.innerHTML = "";
   const filtered = getFiltered();
@@ -623,7 +582,7 @@ function render() {
       <div class="min-w-0 flex-1">
         <p class="display-serif text-ink text-base leading-snug line-clamp-3">${escapeHtml(b.title || "（無題）")}</p>
         <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author || "")}</p>
-        ${b.genre ? `<p class="inline-flex mt-2 px-2 py-0.5 rounded-full bg-parchment text-sepia text-[11px] border border-aged">${escapeHtml(b.genre)}</p>` : ""}
+        ${b.genre ? `<p class="pill mt-2">${escapeHtml(b.genre)}</p>` : ""}
         ${b.readAt ? `<p class="label-italic text-xs text-burgundy mt-2">read · ${fmtDate(b.readAt)}</p>` : ""}
         ${b.comment ? `<p class="text-sepia text-xs mt-1 line-clamp-2">“${escapeHtml(b.comment)}”</p>` : ""}
       </div>
@@ -644,8 +603,8 @@ function openEditSheet(id, prefill = null) {
   $("#fTitle").value   = b?.title   || "";
   $("#fAuthor").value  = b?.author  || "";
   $("#fIsbn").value    = b?.isbn    || "";
-  $("#fGenre").value   = b?.genre   || guessGenreFromBook(b || {}) || "";
   $("#fReadAt").value  = b?.readAt  || "";
+  $("#fGenre").value   = b?.genre   || "";
   $("#fComment").value = b?.comment || "";
   const cov = $("#editCover");
   if (b?.cover) { cov.src = b.cover; cov.style.background = ""; }
@@ -659,8 +618,8 @@ $("#saveBtn").addEventListener("click", () => {
   const title  = $("#fTitle").value.trim();
   const author = $("#fAuthor").value.trim();
   const isbn   = $("#fIsbn").value.trim();
-  const genre  = $("#fGenre").value.trim();
   const readAt = $("#fReadAt").value || "";
+  const genre  = $("#fGenre").value.trim();
   const comment= $("#fComment").value.trim();
   const cover  = $("#editCover").getAttribute("src") || "";
 
@@ -669,12 +628,12 @@ $("#saveBtn").addEventListener("click", () => {
   if (editingId) {
     const i = books.findIndex(b => b.id === editingId);
     if (i >= 0) {
-      books[i] = { ...books[i], title, author, isbn, genre, readAt, comment, cover };
+      books[i] = { ...books[i], title, author, isbn, readAt, genre, comment, cover };
     }
   } else {
     books.unshift({
       id: uid(),
-      title, author, isbn, genre, readAt, comment, cover,
+      title, author, isbn, readAt, genre, comment, cover,
       addedAt: new Date().toISOString(),
     });
   }
@@ -703,122 +662,85 @@ $("#deleteBtn").addEventListener("click", () => {
 ================================================================ */
 $("#fab").addEventListener("click", () => openScanSheet());
 
-async function openScanSheet() {
-  show("#scanSheet");
-  setCameraHelpVisible(false);
-  $("#scanStatus").textContent = "カメラを起動しています…";
-  $("#manualIsbn").value = "";
-  lastScanned = ""; lastScanAt = 0; scanBusy = false;
-  await startScanner();
+function showCameraGuide(message = "カメラを起動できませんでした。") {
+  $("#scanStatus").textContent = message;
+  $("#cameraGuide").classList.remove("hidden");
 }
-
-function scanConfig() {
-  const cfg = {
-    fps: 15,
+function hideCameraGuide() {
+  $("#cameraGuide").classList.add("hidden");
+}
+function explainCameraError(err) {
+  const name = err?.name || "";
+  if (name === "NotAllowedError" || name === "SecurityError") return "カメラが許可されていません。下の手順で許可してください。";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") return "利用できるカメラが見つかりませんでした。";
+  if (name === "NotReadableError" || name === "TrackStartError") return "他のアプリがカメラを使用中かもしれません。閉じてから再試行してください。";
+  if (!window.isSecureContext) return "HTTPSではないためカメラを使えません。HTTPSのURLで開いてください。";
+  return "カメラを起動できませんでした。下の手順を確認してください。";
+}
+async function pickBackCameraId() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("mediaDevices unsupported");
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+  stream.getTracks().forEach(t => t.stop());
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams = devices.filter(d => d.kind === "videoinput");
+  const back = cams.find(d => /back|rear|environment|背面|外側/i.test(d.label));
+  return (back || cams[0])?.deviceId || null;
+}
+async function startScanner() {
+  if (!scanner) scanner = new Html5Qrcode("reader", { verbose: false });
+  const options = {
+    fps: 12,
     qrbox: (vw, vh) => {
-      const w = Math.min(vw * 0.86, 520);
-      const h = Math.min(vh * 0.34, 220);
+      const w = Math.min(vw * 0.78, 420);
+      const h = Math.min(vh * 0.28, 160);
       return { width: w, height: h };
     },
     aspectRatio: 1.6,
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-  };
-  if (window.Html5QrcodeSupportedFormats) {
-    cfg.formatsToSupport = [
+    formatsToSupport: [
       Html5QrcodeSupportedFormats.EAN_13,
       Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_A,
       Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-    ].filter(Boolean);
-  }
-  return cfg;
-}
-
-async function startScanner(cameraId = null) {
-  const status = $("#scanStatus");
+    ],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+  };
+  const cameraId = await pickBackCameraId();
   try {
-    if (!window.isSecureContext) {
-      throw new Error("INSECURE_CONTEXT: カメラはHTTPSまたはlocalhostでのみ使えます");
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("GET_USER_MEDIA_UNAVAILABLE: このブラウザ/表示環境ではカメラAPIが使えません。アプリ内ブラウザやiframeの場合は外部Chromeで開いてください");
-    }
-    if (!window.Html5Qrcode) throw new Error("html5-qrcode is not loaded");
-
-    if (scanner) { try { await scanner.stop(); } catch {} try { scanner.clear(); } catch {} }
-
-    // 先にブラウザへ直接カメラ許可を要求する。Android Chromeでラベル取得や背面選択が安定します。
-    try {
-      const warmup = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-      warmup.getTracks().forEach(t => t.stop());
-    } catch (permissionErr) {
-      throw new Error(`CAMERA_PERMISSION_FAILED: ${permissionErr.name || permissionErr.message || permissionErr}`);
-    }
-
-    let cameras = [];
-    try { cameras = await Html5Qrcode.getCameras(); } catch {}
-    const select = $("#cameraSelect");
-    const back = cameras.find(c => /back|rear|environment|背面|アウト|後面|0$/i.test(c.label || ""));
-    const chosenId = cameraId || back?.id || cameras[0]?.id || null;
-
-    if (select && cameras.length > 0) {
-      select.classList.toggle("hidden", cameras.length <= 1);
-      select.innerHTML = cameras.map((c, i) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label || `カメラ ${i + 1}`)}</option>`).join("");
-      if (chosenId) select.value = chosenId;
-    }
-
-    scanner = new Html5Qrcode("reader", { verbose: false });
-
-    // html5-qrcodeは端末によって constraint 指定より cameraId 文字列指定の方が安定します。
-    const attempts = [];
-    if (chosenId) attempts.push(chosenId);
-    attempts.push({ facingMode: { ideal: "environment" } });
-    attempts.push({ facingMode: "environment" });
-    attempts.push({ facingMode: "user" });
-
-    let lastError = null;
-    for (const cfg of attempts) {
-      try {
-        await scanner.start(cfg, scanConfig(), onScanSuccess, () => {});
-        status.textContent = "本のISBNバーコードを枠内に収めてください。読めない場合は手入力またはバーコードなしで追加してください。";
-        return;
-      } catch (e) {
-        lastError = e;
-        try { await scanner.stop(); } catch {}
-        try { scanner.clear(); } catch {}
-        scanner = new Html5Qrcode("reader", { verbose: false });
-      }
-    }
-    throw lastError || new Error("NO_CAMERA_START_ATTEMPT_SUCCEEDED");
+    await scanner.start(cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" }, options, onScanSuccess, () => {});
+  } catch (e) {
+    console.warn("cameraId start failed; retry facingMode", e);
+    await scanner.start({ facingMode: "environment" }, options, onScanSuccess, () => {});
+  }
+}
+async function openScanSheet() {
+  show("#scanSheet");
+  hideCameraGuide();
+  $("#scanStatus").textContent = "カメラを起動しています…";
+  $("#manualIsbn").value = "";
+  lastScanned = ""; lastScanAt = 0;
+  if (cameraStarting) return;
+  cameraStarting = true;
+  try {
+    await startScanner();
+    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください";
   } catch (err) {
     console.error(err);
-    setCameraHelpVisible(true);
-    const msg = String(err?.message || err?.name || err || "");
-    if (/NotAllowed|Permission|CAMERA_PERMISSION_FAILED/i.test(msg)) {
-      status.textContent = "カメラ許可がブロックされています。Chromeのサイト設定でカメラを許可してから『カメラ再試行』を押してください。";
-    } else if (/NotFound|DevicesNotFound|Overconstrained/i.test(msg)) {
-      status.textContent = "利用できるカメラが見つかりませんでした。別のカメラを選ぶか、ISBN手入力/バーコードなし追加を使ってください。";
-    } else if (/INSECURE_CONTEXT|GET_USER_MEDIA_UNAVAILABLE/i.test(msg)) {
-      status.textContent = "この表示環境ではカメラAPIが使えません。HTTPSの公開URLを外部Chromeで直接開いてください。";
-    } else {
-      status.textContent = `カメラを起動できませんでした：${msg || "不明なエラー"}`;
-    }
+    showCameraGuide(explainCameraError(err));
+  } finally {
+    cameraStarting = false;
   }
 }
 
 async function closeScanSheet() {
   hide("#scanSheet");
+  hideCameraGuide();
   if (scanner) {
     try { await scanner.stop(); } catch {}
     try { scanner.clear(); } catch {}
-    scanner = null;
   }
-  scanBusy = false;
 }
 
 async function onScanSuccess(decoded) {
-  if (scanBusy) return;
   const now = Date.now();
   if (decoded === lastScanned && now - lastScanAt < 2500) return;
   lastScanned = decoded; lastScanAt = now;
@@ -829,7 +751,6 @@ async function onScanSuccess(decoded) {
     return;
   }
   $("#scanStatus").textContent = `読み取り成功：${isbn} を検索しています…`;
-  scanBusy = true;
   await handleIsbn(isbn);
 }
 
@@ -853,28 +774,22 @@ async function handleIsbn(isbn) {
 }
 
 $("#manualLookup").addEventListener("click", async () => {
-  if (scanBusy) return;
   const raw = $("#manualIsbn").value;
   const isbn = normalizeIsbn(raw);
   if (!isbn) { toast("ISBNの形式が正しくありません", "error"); return; }
   $("#scanStatus").textContent = `${isbn} を検索しています…`;
-  scanBusy = true;
   await handleIsbn(isbn);
 });
 
-$("#manualIsbn").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") $("#manualLookup").click();
-});
-$("#retryCamera").addEventListener("click", () => startScanner($("#cameraSelect")?.value || null));
-$("#showCameraHelp").addEventListener("click", () => setCameraHelpVisible($("#cameraHelp")?.classList.contains("hidden")));
-$("#copyPageUrl").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText(location.href); toast("URLをコピーしました"); }
-  catch { toast("URLをコピーできませんでした", "error"); }
-});
-$("#cameraSelect").addEventListener("change", (e) => startScanner(e.target.value));
-$("#addWithoutBarcode").addEventListener("click", async () => {
+$("#manualAddBtn").addEventListener("click", async () => {
   await closeScanSheet();
-  openEditSheet(null, { title: "", author: "", isbn: "", genre: "" });
+  openEditSheet(null, {});
+});
+$("#showGuideBtn").addEventListener("click", () => showCameraGuide("カメラ設定ガイドを表示しています。"));
+$("#retryCameraBtn").addEventListener("click", () => openScanSheet());
+$("#copyUrlBtn").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(location.href); toast("URLをコピーしました"); }
+  catch { toast("コピーできませんでした", "error"); }
 });
 
 /* ================================================================
@@ -919,107 +834,6 @@ $("#exportCsv").addEventListener("click", () => {
   toast("CSVを書き出しました");
 });
 
-
-/* ================================================================
-   Recommendations / delivery
-================================================================ */
-function pickRecommendationGenre() {
-  const selected = $("#recommendGenre")?.value || "";
-  if (selected) return selected;
-  const counts = {};
-  for (const b of books) if (b.genre) counts[b.genre] = (counts[b.genre] || 0) + 1;
-  const top = Object.entries(counts).sort((a,b) => b[1] - a[1])[0]?.[0];
-  return top || "小説";
-}
-
-async function fetchRecommendations(genre) {
-  const q = encodeURIComponent(`subject:${genre}`);
-  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&langRestrict=ja&maxResults=10&orderBy=relevance`);
-  if (!r.ok) throw new Error("google books " + r.status);
-  const j = await r.json();
-  const owned = new Set(books.map(b => normalizeIsbn(b.isbn)).filter(Boolean));
-  return (j.items || []).map(item => {
-    const v = item.volumeInfo || {};
-    const ids = v.industryIdentifiers || [];
-    const isbn = ids.find(x => x.type === "ISBN_13")?.identifier || ids.find(x => x.type === "ISBN_10")?.identifier || "";
-    return {
-      title: v.title || "（無題）",
-      author: (v.authors || []).join(", "),
-      isbn: normalizeIsbn(isbn),
-      genre,
-      cover: (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
-      description: v.description || "",
-      infoLink: v.infoLink || "",
-    };
-  }).filter(b => !b.isbn || !owned.has(b.isbn)).slice(0, 6);
-}
-
-function renderRecommendations(items) {
-  const box = $("#recommendList");
-  if (!items.length) { box.innerHTML = `<div class="empty">おすすめ候補が見つかりませんでした。</div>`; return; }
-  box.innerHTML = "";
-  for (const b of items) {
-    const el = document.createElement("article");
-    el.className = "book-card rounded-xl p-3 flex gap-3";
-    el.innerHTML = `
-      <div class="shrink-0">${b.cover ? `<img src="${escapeHtml(b.cover)}" alt="" class="w-16 h-24 object-cover rounded-md cover-shadow bg-aged">` : `<div class="w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs">No Cover</div>`}</div>
-      <div class="min-w-0 flex-1">
-        <p class="display-serif text-ink text-base leading-snug line-clamp-2">${escapeHtml(b.title)}</p>
-        <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author)}</p>
-        <p class="inline-flex mt-2 px-2 py-0.5 rounded-full bg-parchment text-sepia text-[11px] border border-aged">${escapeHtml(b.genre)}</p>
-        <p class="text-sepia text-xs mt-2 line-clamp-2">${escapeHtml(b.description.replace(/<[^>]+>/g, ""))}</p>
-        <div class="mt-3 flex gap-2">
-          <button class="btn btn-primary text-sm" data-add-rec>本棚に追加</button>
-          ${b.infoLink ? `<a class="btn btn-ghost text-sm" href="${escapeHtml(b.infoLink)}" target="_blank" rel="noopener">詳細</a>` : ""}
-        </div>
-      </div>`;
-    el.querySelector("[data-add-rec]").addEventListener("click", () => openEditSheet(null, b));
-    box.appendChild(el);
-  }
-}
-
-async function loadAndShowRecommendations(notify = false) {
-  const genre = pickRecommendationGenre();
-  $("#recommendList").innerHTML = `<div class="empty">${escapeHtml(genre)} のおすすめを取得しています…</div>`;
-  try {
-    const items = await fetchRecommendations(genre);
-    renderRecommendations(items);
-    if (notify && items[0]) sendRecommendationNotification(items[0]);
-  } catch (e) {
-    console.warn(e);
-    $("#recommendList").innerHTML = `<div class="empty">おすすめを取得できませんでした。通信環境を確認してください。</div>`;
-  }
-}
-
-async function sendRecommendationNotification(book) {
-  if (!("Notification" in window)) { toast("このブラウザは通知に対応していません", "error"); return; }
-  if (Notification.permission === "default") await Notification.requestPermission();
-  if (Notification.permission !== "granted") { toast("通知が許可されていません", "error"); return; }
-  const title = `今日のおすすめ：${book.title}`;
-  const options = { body: book.author ? `${book.author} / ${book.genre}` : book.genre, icon: book.cover || undefined, tag: "library-recommendation" };
-  const reg = await navigator.serviceWorker?.ready.catch(() => null);
-  if (reg?.showNotification) reg.showNotification(title, options);
-  else new Notification(title, options);
-}
-
-let recommendationTimer = null;
-function startRecommendationDelivery() {
-  const settings = loadRecSettings();
-  if (!settings.enabled) return;
-  clearInterval(recommendationTimer);
-  recommendationTimer = setInterval(() => loadAndShowRecommendations(true), 1000 * 60 * 60 * 24);
-}
-
-$("#recommendBtn").addEventListener("click", () => { show("#recommendSheet"); refreshGenreControls(); loadAndShowRecommendations(false); });
-$("#loadRecommendations").addEventListener("click", () => loadAndShowRecommendations(false));
-$("#enableRecommendations").addEventListener("click", async () => {
-  const settings = { enabled: true, genre: $("#recommendGenre").value || "" };
-  saveRecSettings(settings);
-  await loadAndShowRecommendations(true);
-  startRecommendationDelivery();
-  toast("おすすめ通知を有効にしました");
-});
-
 /* ================================================================
    Sheet open/close helpers
 ================================================================ */
@@ -1050,14 +864,59 @@ document.addEventListener("keydown", (e) => {
 $("#searchInput").addEventListener("input", render);
 $("#sortSelect").addEventListener("change", render);
 $("#genreFilter").addEventListener("change", render);
-$("#clearFilters").addEventListener("click", () => { $("#searchInput").value = ""; $("#genreFilter").value = ""; render(); });
+
+
+/* ================================================================
+   Recommendations
+================================================================ */
+function recommendationKeyword() {
+  const genres = books.map(b => (b.genre || "").trim()).filter(Boolean);
+  if (genres.length) return genres[Math.floor(Math.random() * genres.length)];
+  const q = $("#searchInput").value.trim();
+  return q || "本";
+}
+async function loadRecommendations() {
+  const list = $("#recommendList");
+  const keyword = recommendationKeyword();
+  list.innerHTML = `<p class="text-sm text-sepia">「${escapeHtml(keyword)}」に近い本を探しています…</p>`;
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&langRestrict=ja&maxResults=6`);
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    const items = (j.items || []).map(x => x.volumeInfo).filter(Boolean);
+    if (!items.length) { list.innerHTML = `<div class="empty">おすすめ候補が見つかりませんでした。</div>`; return; }
+    list.innerHTML = "";
+    for (const v of items) {
+      const title = v.title || "（無題）";
+      const author = (v.authors || []).join(", ");
+      const cover = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/,"https:");
+      const card = document.createElement("article");
+      card.className = "book-card rounded-xl p-3 flex gap-3";
+      card.innerHTML = `${cover ? `<img src="${escapeHtml(cover)}" class="w-12 h-18 object-cover rounded bg-aged" alt="">` : `<div class="w-12 h-18 rounded bg-aged"></div>`}<div class="min-w-0"><p class="display-serif leading-snug">${escapeHtml(title)}</p><p class="text-xs text-sepia mt-1">${escapeHtml(author)}</p></div>`;
+      list.appendChild(card);
+    }
+  } catch(e) {
+    console.error(e);
+    list.innerHTML = `<div class="empty">おすすめを取得できませんでした。通信状態を確認してください。</div>`;
+  }
+}
+$("#recommendBtn").addEventListener("click", () => { show("#recommendSheet"); loadRecommendations(); });
+$("#loadRecommendBtn").addEventListener("click", loadRecommendations);
+$("#notifyRecommendBtn").addEventListener("click", async () => {
+  if (!("Notification" in window)) { toast("このブラウザは通知に対応していません", "error"); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { toast("通知が許可されませんでした", "error"); return; }
+  const keyword = recommendationKeyword();
+  new Notification("蔵書からのおすすめ", { body: `今日は「${keyword}」に近い本を探してみませんか？` });
+  toast("通知を表示しました");
+});
 
 /* ================================================================
    Service Worker
 ================================================================ */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(err => console.warn("SW register failed:", err));
+    navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW register failed:", err));
   });
 }
 
@@ -1065,7 +924,6 @@ if ("serviceWorker" in navigator) {
    Boot
 ================================================================ */
 render();
-startRecommendationDelivery();
 </script>
 </body>
 </html>
