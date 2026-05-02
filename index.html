@@ -176,6 +176,19 @@
 
   /* make modals scrollable on small screens */
   .sheet-body { max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  .help-panel {
+    background: rgba(255,252,245,0.85);
+    border: 1px solid #D4C9B4;
+    border-radius: 14px;
+    padding: 12px;
+    color: #5C4F44;
+  }
+  .help-panel strong { color: #1A1410; }
+  .help-panel ol { padding-left: 1.25rem; }
+  .help-panel li { margin: 6px 0; }
+  .mini-note { font-size: 12px; color: #5C4F44; line-height: 1.65; }
+
 </style>
 </head>
 <body class="min-h-screen">
@@ -261,9 +274,23 @@
         <div class="scan-frame"></div>
       </div>
       <p id="scanStatus" class="text-sm text-sepia text-center mt-3">カメラを起動しています…</p>
-      <div class="mt-3 grid grid-cols-2 gap-2">
+      <div id="cameraHelp" class="help-panel mt-3 hidden">
+        <p class="font-semibold text-ink mb-1">カメラが起動しないとき</p>
+        <ol class="text-sm">
+          <li>画面上のアドレスバー左にある <strong>設定アイコン</strong> を押します。</li>
+          <li><strong>権限</strong> または <strong>サイトの設定</strong> を開き、<strong>カメラを許可</strong> にします。</li>
+          <li>ページを再読み込みして、もう一度 <strong>＋ → カメラ再試行</strong> を押します。</li>
+        </ol>
+        <p class="mini-note mt-2">Android Chromeの場合：︙ → 設定 → サイトの設定 → カメラ → このサイトを許可。</p>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button id="copyPageUrl" class="btn btn-ghost text-sm">URLをコピー</button>
+          <a id="openThisPage" class="btn btn-ghost text-sm" target="_blank" rel="noopener">別タブで開く</a>
+        </div>
+      </div>
+      <div class="mt-3 grid grid-cols-3 gap-2">
         <button id="retryCamera" class="btn btn-ghost text-sm">カメラ再試行</button>
-        <button id="addWithoutBarcode" class="btn btn-ghost text-sm">バーコードなしで追加</button>
+        <button id="showCameraHelp" class="btn btn-ghost text-sm">設定ガイド</button>
+        <button id="addWithoutBarcode" class="btn btn-ghost text-sm">手入力追加</button>
       </div>
 
       <div class="mt-4 rule">or enter manually</div>
@@ -358,6 +385,7 @@
         <button class="btn btn-ghost text-sm" data-close>閉じる</button>
       </div>
       <p class="text-sm text-sepia mb-3">ジャンルや蔵書傾向から Google Books で候補を探します。通知を許可すると、アプリを開いている間におすすめを通知できます。</p>
+      <p class="mini-note mb-3">※サーバーなしのPWAでは、アプリを完全に閉じている間の定期プッシュ配信はできません。毎日配信したい場合は、後からサーバー/Functionsを追加できます。</p>
       <div class="grid grid-cols-2 gap-2 mb-3">
         <select id="recommendGenre" class="field col-span-2">
           <option value="">ジャンルを自動で選ぶ</option>
@@ -422,6 +450,13 @@ const toast = (msg, type = "ok") => {
   t.classList.add("show");
   clearTimeout(t._tid);
   t._tid = setTimeout(() => t.classList.remove("show"), 2200);
+};
+
+const setCameraHelpVisible = (visible) => {
+  const panel = $("#cameraHelp");
+  if (panel) panel.classList.toggle("hidden", !visible);
+  const link = $("#openThisPage");
+  if (link) link.href = location.href;
 };
 
 function knownGenres() {
@@ -670,6 +705,7 @@ $("#fab").addEventListener("click", () => openScanSheet());
 
 async function openScanSheet() {
   show("#scanSheet");
+  setCameraHelpVisible(false);
   $("#scanStatus").textContent = "カメラを起動しています…";
   $("#manualIsbn").value = "";
   lastScanned = ""; lastScanAt = 0; scanBusy = false;
@@ -757,6 +793,7 @@ async function startScanner(cameraId = null) {
     throw lastError || new Error("NO_CAMERA_START_ATTEMPT_SUCCEEDED");
   } catch (err) {
     console.error(err);
+    setCameraHelpVisible(true);
     const msg = String(err?.message || err?.name || err || "");
     if (/NotAllowed|Permission|CAMERA_PERMISSION_FAILED/i.test(msg)) {
       status.textContent = "カメラ許可がブロックされています。Chromeのサイト設定でカメラを許可してから『カメラ再試行』を押してください。";
@@ -829,6 +866,11 @@ $("#manualIsbn").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("#manualLookup").click();
 });
 $("#retryCamera").addEventListener("click", () => startScanner($("#cameraSelect")?.value || null));
+$("#showCameraHelp").addEventListener("click", () => setCameraHelpVisible($("#cameraHelp")?.classList.contains("hidden")));
+$("#copyPageUrl").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(location.href); toast("URLをコピーしました"); }
+  catch { toast("URLをコピーできませんでした", "error"); }
+});
 $("#cameraSelect").addEventListener("change", (e) => startScanner(e.target.value));
 $("#addWithoutBarcode").addEventListener("click", async () => {
   await closeScanSheet();
