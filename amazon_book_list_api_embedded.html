@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>書籍リスト作成ツール【APIキー埋め込み版】</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #e47911;
+            --danger: #dc3545;
+            --muted: #6c757d;
+            --bg: #f4f7f9;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .search-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            max-width: 700px;
+            margin: 20px auto;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="url"] {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+        }
+
+        button#searchBtn {
+            padding: 0 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button#searchBtn:hover { opacity: 0.9; }
+
+        .api-key-box {
+            max-width: 700px;
+            margin: 10px auto 0;
+            text-align: left;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .api-key-box label {
+            display: block;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #555;
+        }
+
+        .api-key-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #apiKeyInput {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .small-btn {
+            padding: 0 14px;
+            border: none;
+            border-radius: 8px;
+            background: #495057;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .note {
+            font-size: 0.82em;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        #results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #eee;
+        }
+
+        .img-box {
+            width: 100%;
+            height: 200px;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .img-box img {
+            max-height: 180px;
+            max-width: 90%;
+            object-fit: contain;
+        }
+
+        .info-box { padding: 20px; flex-grow: 1; }
+        .title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; color: #111; }
+        .author { font-size: 0.9em; color: #666; margin-bottom: 10px; }
+        .summary {
+            font-size: 0.85em;
+            color: #777;
+            height: 4.5em;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        .actions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            box-sizing: border-box;
+            border: none;
+        }
+
+        .btn-search { background: #fff; color: var(--warning); border: 2px solid var(--warning); }
+        .btn-open { background: var(--warning); color: #fff; display: none; }
+        .btn-add { background: var(--success); color: white; }
+        .btn-clear { background: var(--danger); color: white; width: auto; display: inline-block; margin-left: 8px; }
+
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.8em;
+            box-sizing: border-box;
+        }
+
+        .list-section {
+            margin-top: 50px;
+            background: #333;
+            color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+        }
+
+        textarea#finalList {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        #loading { text-align: center; display: none; padding: 50px; font-size: 1.5em; }
+
+        @media (max-width: 640px) {
+            .search-box,
+            .api-key-row {
+                flex-direction: column;
+            }
+
+            button#searchBtn,
+            .small-btn {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-section">
+        <h2>📖 Amazon書籍リスト作成ツール（APIキー埋め込み版）</h2>
+        <p>1. 検索 → 2. Amazonで正しいページを探す → 3. URLを貼ってリストに追加！</p>
+
+        <div class="api-key-box">
+            <label for="apiKeyInput">Google Books APIキー（コードに埋め込み済み・編集可）</label>
+            <div class="api-key-row">
+                <input
+                    type="password"
+                    id="apiKeyInput"
+                    placeholder="APIキーは埋め込み済みです。必要なら変更できます"
+                    autocomplete="off"
+                >
+                <button type="button" class="small-btn" onclick="toggleApiKeyVisibility()">表示/非表示</button>
+                <button type="button" class="small-btn" onclick="saveApiKey()">保存</button>
+                <button type="button" class="small-btn" onclick="clearApiKey()">削除</button>
+            </div>
+            <div class="note">
+                APIキーはHTMLコード内に埋め込み済みです。公開サイトにアップロードする場合は、Google Cloud ConsoleでHTTPリファラー制限とAPI制限を必ず設定してください。
+            </div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="本のタイトル、著者、ジャンル...">
+            <button id="searchBtn" onclick="searchBooks()">検索開始</button>
+        </div>
+    </div>
+
+    <div id="loading">🔍 検索中...</div>
+    <div id="results"></div>
+
+    <div class="list-section">
+        <h3>📋 作成されたリスト（ここに自動で蓄積されます）</h3>
+        <button class="btn btn-add" style="width: auto; display: inline-block;" onclick="copyToClipboard()">リスト全体をコピーする</button>
+        <button class="btn btn-clear" onclick="clearFinalList()">リストを空にする</button>
+        <textarea id="finalList" placeholder="「リストに追加」ボタンを押すとここにテキストが生成されます..."></textarea>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'googleBooksApiKey';
+
+    // 注意：このAPIキーはHTML内に直接埋め込まれています。
+    // 公開サイトにアップロードすると第三者に見えるため、Google Cloud Consoleで
+    // HTTPリファラー制限とGoogle Books APIのみのAPI制限を設定してください。
+    const EMBEDDED_API_KEY = "AIzaSyAVOhexpvcUixAMLzkaon3qlx7Q05OYDCE";
+
+    const apiKeyInput = document.getElementById('apiKeyInput');
+
+    // 保存済みAPIキーがあれば優先し、なければ埋め込みAPIキーを使用
+    apiKeyInput.value = localStorage.getItem(STORAGE_KEY) || EMBEDDED_API_KEY;
+
+    // エンターキーで検索
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchBooks();
+    });
+
+    function saveApiKey() {
+        const apiKey = apiKeyInput.value.trim();
+
+        if (!apiKey) {
+            alert('APIキーが空です。保存するAPIキーを入力してください。');
+            return;
+        }
+
+        localStorage.setItem(STORAGE_KEY, apiKey);
+        alert('APIキーをこのブラウザに保存しました。次回から保存したキーを優先して使います。');
+    }
+
+    function clearApiKey() {
+        apiKeyInput.value = "";
+        localStorage.removeItem(STORAGE_KEY);
+        alert('保存済みAPIキーを削除しました。');
+    }
+
+    function getApiKey() {
+        return apiKeyInput.value.trim();
+    }
+
+    function toggleApiKeyVisibility() {
+        apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+    }
+
+    function escapeText(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function setText(parent, selector, value) {
+        parent.querySelector(selector).textContent = value;
+    }
+
+    async function searchBooks() {
+        const input = document.getElementById('searchInput').value.trim();
+        if (!input) return;
+
+        // 入力されているAPIキーは検索時にも保存
+        const currentApiKey = getApiKey();
+        if (currentApiKey) {
+            localStorage.setItem(STORAGE_KEY, currentApiKey);
+        }
+
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+
+        loadingDiv.style.display = 'block';
+        resultsDiv.innerHTML = '';
+
+        try {
+            let fetchUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(input)}&maxResults=20`;
+            const apiKey = getApiKey();
+
+            if (apiKey !== "") {
+                fetchUrl += `&key=${encodeURIComponent(apiKey)}`;
+            }
+
+            const response = await fetch(fetchUrl);
+
+            if (!response.ok) {
+                throw new Error(`APIリクエスト失敗: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.items || data.items.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">見つかりませんでした。</p>';
+                return;
+            }
+
+            data.items.forEach(item => {
+                const info = item.volumeInfo || {};
+                const title = info.title || "不明";
+                const authors = info.authors ? info.authors.join(', ') : "著者不明";
+                const summary = info.description || "概要なし";
+
+                let thumb = "https://placehold.jp/150x200.png?text=No+Image";
+                if (info.imageLinks) {
+                    const imageUrl = info.imageLinks.thumbnail || info.imageLinks.smallThumbnail;
+                    if (imageUrl) thumb = imageUrl.replace("http://", "https://");
+                }
+
+                let isbn13 = "";
+                if (info.industryIdentifiers) {
+                    const found = info.industryIdentifiers.find(id => id.type === "ISBN_13");
+                    if (found) isbn13 = found.identifier;
+                }
+
+                let searchKeyword = "";
+                if (isbn13) {
+                    searchKeyword = isbn13;
+                } else {
+                    const simpleTitle = title.split(':')[0].split('(')[0].split('（')[0].trim();
+                    searchKeyword = simpleTitle || title;
+                }
+
+                const searchUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(searchKeyword)}`;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                card.innerHTML = `
+                    <div class="img-box"><img src="" alt="cover"></div>
+                    <div class="info-box">
+                        <div class="title"></div>
+                        <div class="author"></div>
+                        <div class="summary"></div>
+                    </div>
+                    <div class="actions">
+                        <a href="" target="_blank" class="btn btn-search" rel="noopener noreferrer">1. Amazonで検索してURLをコピー</a>
+                        <input type="url" class="url-input" placeholder="2. コピーしたURLを貼り付け" oninput="updateLink(this)">
+                        <a href="#" target="_blank" class="btn btn-open" rel="noopener noreferrer">貼り付けたURLを確認する</a>
+                        <button class="btn btn-add">3. リストに追加</button>
+                    </div>
+                `;
+
+                card.querySelector('img').src = thumb;
+                card.querySelector('img').alt = `${title} cover`;
+                card.querySelector('.btn-search').href = searchUrl;
+                setText(card, '.title', title);
+                setText(card, '.author', authors);
+                setText(card, '.summary', summary);
+
+                card.querySelector('.btn-add').addEventListener('click', function () {
+                    addToList(this, title);
+                });
+
+                resultsDiv.appendChild(card);
+            });
+        } catch (e) {
+            console.error(e);
+            resultsDiv.innerHTML = `<p style="text-align:center; grid-column: 1/-1; color: red; font-weight: bold;">エラーが発生しました（${escapeText(e.message)}）。<br>APIキーが正しく設定されていないか、利用制限に引っかかっている可能性があります。</p>`;
+        } finally {
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    function updateLink(input) {
+        const url = input.value.trim();
+        const openBtn = input.nextElementSibling;
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            openBtn.href = url;
+            openBtn.style.display = 'block';
+        } else {
+            openBtn.style.display = 'none';
+        }
+    }
+
+    function addToList(btn, title) {
+        const card = btn.closest('.card');
+        const summary = card.querySelector('.summary').innerText;
+        const url = card.querySelector('.url-input').value.trim() || "URL未登録";
+        const listArea = document.getElementById('finalList');
+
+        const entry = `【書籍名】${title}\n【URL】${url}\n【概要】${summary}\n------------------------------\n`;
+        listArea.value += entry;
+
+        btn.innerText = "✅ 追加済み";
+        btn.style.background = "#6c757d";
+
+        setTimeout(() => {
+            btn.innerText = "3. リストに追加";
+            btn.style.background = "#28a745";
+        }, 2000);
+    }
+
+    function copyToClipboard() {
+        const listArea = document.getElementById('finalList');
+        if (!listArea.value.trim()) {
+            alert("コピーするリストがありません。");
+            return;
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(listArea.value)
+                .then(() => alert("リスト全体をクリップボードにコピーしました！"))
+                .catch(() => fallbackCopy(listArea));
+        } else {
+            fallbackCopy(listArea);
+        }
+    }
+
+    function fallbackCopy(listArea) {
+        listArea.select();
+        document.execCommand('copy');
+        alert("リスト全体をクリップボードにコピーしました！");
+    }
+
+    function clearFinalList() {
+        if (confirm("作成されたリストを空にしますか？")) {
+            document.getElementById('finalList').value = "";
+        }
+    }
+</script>
+
+</body>
+</html>
