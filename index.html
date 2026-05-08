@@ -1,929 +1,495 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#F5F1E8">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="蔵書">
-<title>蔵書 — My Personal Library</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%23F5F1E8'/><text x='96' y='130' text-anchor='middle' font-family='serif' font-size='120' fill='%238B2E2A'>蔵</text></svg>">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>書籍リスト作成ツール【APIキー埋め込み版】</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #e47911;
+            --danger: #dc3545;
+            --muted: #6c757d;
+            --bg: #f4f7f9;
+            --card-bg: #ffffff;
+        }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;600&display=swap" rel="stylesheet">
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+        .container { max-width: 1200px; margin: 0 auto; }
 
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          parchment: '#F5F1E8',
-          paper:     '#FFFCF5',
-          ink:       '#1A1410',
-          sepia:     '#5C4F44',
-          burgundy:  '#8B2E2A',
-          burgundy2: '#6E2421',
-          aged:      '#D4C9B4',
-          forest:    '#5A6B3E',
-        },
-        fontFamily: {
-          mincho: ['"Shippori Mincho B1"', 'serif'],
-          cormorant: ['"Cormorant Garamond"', 'serif'],
-          sans: ['"Noto Sans JP"', 'sans-serif'],
-        },
-      },
-    },
-  };
-</script>
+        .search-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-<style>
-  :root { color-scheme: light; }
-  html, body { background: #F5F1E8; }
-  body {
-    font-family: "Noto Sans JP", sans-serif;
-    color: #1A1410;
-    /* subtle paper texture */
-    background-image:
-      radial-gradient(circle at 20% 10%, rgba(139,46,42,0.04), transparent 40%),
-      radial-gradient(circle at 80% 90%, rgba(90,107,62,0.04), transparent 40%),
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.06 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-    background-attachment: fixed;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .display-serif { font-family: "Shippori Mincho B1", serif; letter-spacing: 0.02em; }
-  .label-italic { font-family: "Cormorant Garamond", serif; font-style: italic; letter-spacing: 0.04em; }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            max-width: 700px;
+            margin: 20px auto;
+        }
 
-  /* book card */
-  .book-card {
-    background: #FFFCF5;
-    border: 1px solid #D4C9B4;
-    box-shadow:
-      0 1px 0 rgba(26,20,16,0.04),
-      0 8px 20px -12px rgba(26,20,16,0.18);
-    transition: transform .25s ease, box-shadow .25s ease;
-  }
-  .book-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -16px rgba(26,20,16,0.28); }
+        input[type="text"],
+        input[type="password"],
+        input[type="url"] {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
 
-  .cover-shadow {
-    box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 10px 20px -10px rgba(0,0,0,.32);
-  }
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+        }
 
-  /* fab */
-  .fab {
-    background: linear-gradient(180deg, #9C3531 0%, #8B2E2A 60%, #6E2421 100%);
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.18) inset,
-      0 -2px 0 rgba(0,0,0,0.15) inset,
-      0 12px 30px -8px rgba(110,36,33,0.55);
-  }
-  .fab:active { transform: translateY(1px); }
+        button#searchBtn {
+            padding: 0 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
-  /* sheet */
-  .sheet {
-    background: #FFFCF5;
-    border-top: 1px solid #D4C9B4;
-    border-radius: 24px 24px 0 0;
-    box-shadow: 0 -10px 40px -10px rgba(26,20,16,0.3);
-  }
-  .sheet-handle {
-    width: 44px; height: 4px; border-radius: 4px;
-    background: #D4C9B4;
-    margin: 10px auto 4px;
-  }
+        button#searchBtn:hover { opacity: 0.9; }
 
-  /* inputs */
-  .field {
-    background: #FAF7EF;
-    border: 1px solid #D4C9B4;
-    border-radius: 10px;
-    padding: 10px 12px;
-    width: 100%;
-    color: #1A1410;
-    transition: border-color .15s ease, box-shadow .15s ease;
-  }
-  .field:focus { outline: none; border-color: #8B2E2A; box-shadow: 0 0 0 3px rgba(139,46,42,0.12); }
+        .api-key-box {
+            max-width: 700px;
+            margin: 10px auto 0;
+            text-align: left;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+        }
 
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 10px 16px; border-radius: 10px; font-weight: 500;
-    transition: transform .1s ease, background .15s ease, color .15s ease;
-  }
-  .btn:active { transform: translateY(1px); }
-  .btn-primary { background: #8B2E2A; color: #FFFCF5; }
-  .btn-primary:hover { background: #6E2421; }
-  .btn-ghost { background: transparent; color: #5C4F44; border: 1px solid #D4C9B4; }
-  .btn-ghost:hover { background: #F5F1E8; color: #1A1410; }
+        .api-key-box label {
+            display: block;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #555;
+        }
 
-  .toast {
-    position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(96px + env(safe-area-inset-bottom));
-    padding: 10px 18px; border-radius: 999px;
-    background: #1A1410; color: #FFFCF5; font-size: 14px;
-    z-index: 80; opacity: 0; pointer-events: none;
-    transition: opacity .2s ease, transform .2s ease;
-  }
-  .toast.show { opacity: 1; transform: translate(-50%, -6px); }
-  .toast.error { background: #8B2E2A; }
+        .api-key-row {
+            display: flex;
+            gap: 8px;
+        }
 
-  /* scanner */
-  #reader { width: 100%; border-radius: 16px; overflow: hidden; background: #1A1410; }
-  #reader video { border-radius: 16px; }
-  .scan-frame {
-    position: absolute; inset: 0; pointer-events: none;
-    display: grid; place-items: center;
-  }
-  .scan-frame::before {
-    content: ""; width: 78%; height: 28%;
-    border: 2px solid rgba(255,252,245,0.85);
-    border-radius: 12px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
-  }
+        #apiKeyInput {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+        }
 
-  /* divider with title */
-  .rule {
-    display: flex; align-items: center; gap: 12px;
-    color: #5C4F44; font-family: "Cormorant Garamond", serif; font-style: italic;
-  }
-  .rule::before, .rule::after {
-    content: ""; flex: 1; height: 1px; background: #D4C9B4;
-  }
+        .small-btn {
+            padding: 0 14px;
+            border: none;
+            border-radius: 8px;
+            background: #495057;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
 
-  /* empty state */
-  .empty {
-    border: 1px dashed #D4C9B4; border-radius: 16px;
-    padding: 40px 20px; text-align: center; color: #5C4F44;
-    background: rgba(255,252,245,0.6);
-  }
+        .note {
+            font-size: 0.82em;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
 
-  /* fade-in */
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
-  .fade-up { animation: fadeUp .35s ease both; }
+        #results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+        }
 
-  /* select */
-  select.field { appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%235C4F44' d='M6 8L0 0h12z'/></svg>");
-    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
-  }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #eee;
+        }
 
-  /* hide scrollbar in horizontal lists */
-  .no-sb::-webkit-scrollbar { display: none; }
+        .img-box {
+            width: 100%;
+            height: 200px;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #eee;
+        }
 
-  /* make modals scrollable on small screens */
-  .sheet-body { max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .img-box img {
+            max-height: 180px;
+            max-width: 90%;
+            object-fit: contain;
+        }
 
+        .info-box { padding: 20px; flex-grow: 1; }
+        .title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; color: #111; }
+        .author { font-size: 0.9em; color: #666; margin-bottom: 10px; }
+        .summary {
+            font-size: 0.85em;
+            color: #777;
+            height: 4.5em;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
 
-  .guide-box {
-    border: 1px solid #D4C9B4;
-    background: #FAF7EF;
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .guide-box ol { list-style: decimal; padding-left: 1.25rem; }
-  .guide-box li { margin: 6px 0; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid #D4C9B4; border-radius: 999px;
-    padding: 4px 10px; background: #FAF7EF; color: #5C4F44;
-    font-size: 12px;
-  }
-</style>
+        .actions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            box-sizing: border-box;
+            border: none;
+        }
+
+        .btn-search { background: #fff; color: var(--warning); border: 2px solid var(--warning); }
+        .btn-open { background: var(--warning); color: #fff; display: none; }
+        .btn-add { background: var(--success); color: white; }
+        .btn-clear { background: var(--danger); color: white; width: auto; display: inline-block; margin-left: 8px; }
+
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.8em;
+            box-sizing: border-box;
+        }
+
+        .list-section {
+            margin-top: 50px;
+            background: #333;
+            color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+        }
+
+        textarea#finalList {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        #loading { text-align: center; display: none; padding: 50px; font-size: 1.5em; }
+
+        @media (max-width: 640px) {
+            .search-box,
+            .api-key-row {
+                flex-direction: column;
+            }
+
+            button#searchBtn,
+            .small-btn {
+                padding: 12px;
+            }
+        }
+    </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-<!-- ============== HEADER ============== -->
-<header class="px-5 pt-6 pb-3">
-  <div class="flex items-baseline justify-between">
-    <div>
-      <p class="label-italic text-sepia text-sm">My Personal Library</p>
-      <h1 class="display-serif text-3xl text-ink leading-tight">蔵書</h1>
-    </div>
-    <button id="exportBtn" class="btn btn-ghost text-sm" aria-label="エクスポート">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      書き出し
-    </button>
-  </div>
-</header>
+<div class="container">
+    <div class="search-section">
+        <h2>📖 Amazon書籍リスト作成ツール（APIキー埋め込み版）</h2>
+        <p>1. 検索 → 2. Amazonで正しいページを探す → 3. URLを貼ってリストに追加！</p>
 
-<!-- ============== TOOLBAR ============== -->
-<section class="px-5 pb-2">
-  <div class="grid grid-cols-1 gap-2">
-    <div class="flex items-center gap-2">
-      <div class="relative flex-1">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-sepia" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="searchInput" class="field pl-9" placeholder="タイトル・著者・ジャンルで絞り込む" autocomplete="off">
-      </div>
-      <select id="sortSelect" class="field w-auto">
-        <option value="addedDesc">登録が新しい順</option>
-        <option value="addedAsc">登録が古い順</option>
-        <option value="readDesc">読んだ日が新しい順</option>
-        <option value="readAsc">読んだ日が古い順</option>
-        <option value="titleAsc">タイトル順</option>
-      </select>
-    </div>
-    <div class="flex items-center gap-2">
-      <select id="genreFilter" class="field flex-1">
-        <option value="">すべてのジャンル</option>
-      </select>
-      <button id="recommendBtn" class="btn btn-ghost text-sm whitespace-nowrap">おすすめ</button>
-    </div>
-  </div>
-  <p id="counter" class="label-italic text-sepia text-xs mt-2 ml-1"></p>
-</section>
-
-<!-- ============== LIST ============== -->
-<main id="list" class="px-5 pb-40 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3"></main>
-
-<!-- ============== EMPTY ============== -->
-<template id="emptyTpl">
-  <div class="empty mx-5 fade-up">
-    <p class="display-serif text-2xl text-ink mb-1">まだ一冊もありません</p>
-    <p class="text-sm">右下の <span class="text-burgundy font-semibold">＋</span> から、バーコード読み取りまたは手入力で追加できます。</p>
-  </div>
-</template>
-
-<!-- ============== FAB ============== -->
-<button id="fab" aria-label="本を追加"
-  class="fab fixed right-5 z-30 w-16 h-16 rounded-full text-paper grid place-items-center"
-  style="bottom: calc(24px + env(safe-area-inset-bottom));">
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-</button>
-
-<!-- ============== SCAN SHEET ============== -->
-<div id="scanSheet" class="fixed inset-0 z-40 hidden">
-  <div class="absolute inset-0 bg-ink/40" data-close></div>
-  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
-    <div class="sheet-handle"></div>
-    <div class="px-5 pb-6 pt-2">
-      <div class="flex items-baseline justify-between mb-3">
-        <div>
-          <p class="label-italic text-sepia text-sm">Scan</p>
-          <h2 class="display-serif text-2xl">バーコードを読み取る</h2>
+        <div class="api-key-box">
+            <label for="apiKeyInput">Google Books APIキー（コードに埋め込み済み・編集可）</label>
+            <div class="api-key-row">
+                <input
+                    type="password"
+                    id="apiKeyInput"
+                    placeholder="APIキーは埋め込み済みです。必要なら変更できます"
+                    autocomplete="off"
+                >
+                <button type="button" class="small-btn" onclick="toggleApiKeyVisibility()">表示/非表示</button>
+                <button type="button" class="small-btn" onclick="saveApiKey()">保存</button>
+                <button type="button" class="small-btn" onclick="clearApiKey()">削除</button>
+            </div>
+            <div class="note">
+                APIキーはHTMLコード内に埋め込み済みです。公開サイトにアップロードする場合は、Google Cloud ConsoleでHTTPリファラー制限とAPI制限を必ず設定してください。
+            </div>
         </div>
-        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
-      </div>
 
-      <div class="relative">
-        <div id="reader"></div>
-        <div class="scan-frame"></div>
-      </div>
-      <p id="scanStatus" class="text-sm text-sepia text-center mt-3">カメラを起動しています…</p>
-
-      <div id="cameraGuide" class="guide-box mt-3 hidden text-sm text-sepia">
-        <p class="font-semibold text-ink mb-2">カメラが起動しない場合</p>
-        <ol>
-          <li>Chromeのアドレスバー左のアイコンをタップ</li>
-          <li>「権限」または「サイトの設定」を開く</li>
-          <li>「カメラ」を「許可」に変更</li>
-          <li>このページを再読み込みして、もう一度＋を押す</li>
-        </ol>
-        <div class="grid grid-cols-2 gap-2 mt-3">
-          <button id="copyUrlBtn" class="btn btn-ghost text-sm">URLをコピー</button>
-          <button id="retryCameraBtn" class="btn btn-primary text-sm">再試行</button>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="本のタイトル、著者、ジャンル...">
+            <button id="searchBtn" onclick="searchBooks()">検索開始</button>
         </div>
-      </div>
-
-      <div class="mt-4 rule">or enter manually</div>
-
-      <div class="mt-3 flex gap-2">
-        <input id="manualIsbn" inputmode="text" pattern="[0-9Xx-]*" class="field flex-1" placeholder="ISBN（13桁または10桁）">
-        <button id="manualLookup" class="btn btn-primary">取得</button>
-      </div>
-      <div class="grid grid-cols-2 gap-2 mt-2">
-        <button id="manualAddBtn" class="btn btn-ghost text-sm">バーコードなしで追加</button>
-        <button id="showGuideBtn" class="btn btn-ghost text-sm">設定ガイド</button>
-      </div>
     </div>
-  </div>
+
+    <div id="loading">🔍 検索中...</div>
+    <div id="results"></div>
+
+    <div class="list-section">
+        <h3>📋 作成されたリスト（ここに自動で蓄積されます）</h3>
+        <button class="btn btn-add" style="width: auto; display: inline-block;" onclick="copyToClipboard()">リスト全体をコピーする</button>
+        <button class="btn btn-clear" onclick="clearFinalList()">リストを空にする</button>
+        <textarea id="finalList" placeholder="「リストに追加」ボタンを押すとここにテキストが生成されます..."></textarea>
+    </div>
 </div>
 
-<!-- ============== EDIT SHEET ============== -->
-<div id="editSheet" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-ink/40" data-close></div>
-  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
-    <div class="sheet-handle"></div>
-    <div class="px-5 pb-7 pt-2">
-      <div class="flex items-baseline justify-between mb-3">
-        <div>
-          <p class="label-italic text-sepia text-sm" id="editKicker">New entry</p>
-          <h2 class="display-serif text-2xl" id="editTitle">本の情報</h2>
-        </div>
-        <button class="btn btn-ghost text-sm" data-close>キャンセル</button>
-      </div>
-
-      <div class="flex gap-4">
-        <img id="editCover" alt="" class="w-24 h-36 object-cover rounded-md cover-shadow bg-aged" onerror="this.style.background='#D4C9B4';this.removeAttribute('src');">
-        <div class="flex-1 min-w-0">
-          <label class="label-italic text-xs text-sepia">Title</label>
-          <input id="fTitle" class="field mt-1" placeholder="タイトル">
-          <label class="label-italic text-xs text-sepia mt-3 block">Author</label>
-          <input id="fAuthor" class="field mt-1" placeholder="著者名">
-          <label class="label-italic text-xs text-sepia mt-3 block">ISBN</label>
-          <input id="fIsbn" class="field mt-1" placeholder="ISBN" readonly>
-        </div>
-      </div>
-
-      <label class="label-italic text-xs text-sepia mt-4 block">Read date — 読んだ日（任意）</label>
-      <input id="fReadAt" type="date" class="field mt-1">
-
-      <label class="label-italic text-xs text-sepia mt-3 block">Genre — ジャンル</label>
-      <input id="fGenre" class="field mt-1" placeholder="例：小説、ビジネス、技術書、漫画">
-
-      <label class="label-italic text-xs text-sepia mt-3 block">Comment — コメント</label>
-      <textarea id="fComment" rows="3" class="field mt-1" placeholder="気になった箇所、感想、再読メモなど…"></textarea>
-
-      <div class="flex items-center gap-2 mt-5">
-        <button id="deleteBtn" class="btn btn-ghost text-burgundy hidden" style="border-color:#E0BCBA">削除</button>
-        <div class="flex-1"></div>
-        <button id="saveBtn" class="btn btn-primary">保存する</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ============== EXPORT SHEET ============== -->
-<div id="exportSheet" class="fixed inset-0 z-40 hidden">
-  <div class="absolute inset-0 bg-ink/40" data-close></div>
-  <div class="sheet absolute bottom-0 left-0 right-0">
-    <div class="sheet-handle"></div>
-    <div class="px-5 pb-7 pt-2">
-      <div class="flex items-baseline justify-between mb-3">
-        <div>
-          <p class="label-italic text-sepia text-sm">Export</p>
-          <h2 class="display-serif text-2xl">データを書き出す</h2>
-        </div>
-        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
-      </div>
-      <p class="text-sm text-sepia mb-4">保存されている全データをファイルとして書き出します。</p>
-      <div class="grid grid-cols-2 gap-2">
-        <button id="exportJson" class="btn btn-primary">JSON で保存</button>
-        <button id="exportCsv" class="btn btn-ghost">CSV で保存</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ============== RECOMMEND SHEET ============== -->
-<div id="recommendSheet" class="fixed inset-0 z-40 hidden">
-  <div class="absolute inset-0 bg-ink/40" data-close></div>
-  <div class="sheet absolute bottom-0 left-0 right-0 sheet-body">
-    <div class="sheet-handle"></div>
-    <div class="px-5 pb-7 pt-2">
-      <div class="flex items-baseline justify-between mb-3">
-        <div>
-          <p class="label-italic text-sepia text-sm">Recommendations</p>
-          <h2 class="display-serif text-2xl">おすすめの本</h2>
-        </div>
-        <button class="btn btn-ghost text-sm" data-close>閉じる</button>
-      </div>
-      <p class="text-sm text-sepia mb-3">登録済みのジャンルをもとに候補を表示します。通知はアプリを開いている間だけ使えます。</p>
-      <div class="grid grid-cols-2 gap-2 mb-3">
-        <button id="loadRecommendBtn" class="btn btn-primary">おすすめ取得</button>
-        <button id="notifyRecommendBtn" class="btn btn-ghost">通知を許可</button>
-      </div>
-      <div id="recommendList" class="grid grid-cols-1 gap-2"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============== TOAST ============== -->
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<!-- ============== APP ============== -->
 <script>
-/* ================================================================
-   Storage
-================================================================ */
-const STORE_KEY = "library.books.v1";
-const loadBooks = () => {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-  catch { return []; }
-};
-const saveBooks = (arr) => localStorage.setItem(STORE_KEY, JSON.stringify(arr));
+    const STORAGE_KEY = 'googleBooksApiKey';
 
-let books = loadBooks();
-let editingId = null;       // id of book being edited (null = new)
-let scanner = null;         // Html5Qrcode instance
-let lastScanned = "";       // dedupe
-let lastScanAt = 0;
-let cameraStarting = false;
+    // 注意：このAPIキーはHTML内に直接埋め込まれています。
+    // 公開サイトにアップロードすると第三者に見えるため、Google Cloud Consoleで
+    // HTTPリファラー制限とGoogle Books APIのみのAPI制限を設定してください。
+    const EMBEDDED_API_KEY = "AIzaSyAVOhexpvcUixAMLzkaon3qlx7Q05OYDCE";
 
-/* ================================================================
-   Utilities
-================================================================ */
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const fmtDate = (iso) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
-};
-const escapeHtml = (s) => (s ?? "").toString()
-  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+    const apiKeyInput = document.getElementById('apiKeyInput');
 
-const toast = (msg, type = "ok") => {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.classList.toggle("error", type === "error");
-  t.classList.add("show");
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove("show"), 2200);
-};
+    // 保存済みAPIキーがあれば優先し、なければ埋め込みAPIキーを使用
+    apiKeyInput.value = localStorage.getItem(STORAGE_KEY) || EMBEDDED_API_KEY;
 
-/* ================================================================
-   ISBN validation & normalisation
-================================================================ */
-function normalizeIsbn(raw) {
-  if (!raw) return "";
-  const s = raw.replace(/[^0-9Xx]/g, "").toUpperCase();
-  if (s.length === 13 && isValidIsbn13(s)) return s;
-  if (s.length === 10 && isValidIsbn10(s)) return isbn10to13(s);
-  return "";
-}
-function isValidIsbn13(isbn13) {
-  if (!/^\d{13}$/.test(isbn13)) return false;
-  let sum = 0;
-  for (let i = 0; i < 12; i++) sum += parseInt(isbn13[i], 10) * (i % 2 === 0 ? 1 : 3);
-  const check = (10 - (sum % 10)) % 10;
-  return check === parseInt(isbn13[12], 10);
-}
-function isValidIsbn10(isbn10) {
-  if (!/^\d{9}[0-9X]$/.test(isbn10)) return false;
-  let sum = 0;
-  for (let i = 0; i < 10; i++) {
-    const v = isbn10[i] === "X" ? 10 : parseInt(isbn10[i], 10);
-    sum += v * (10 - i);
-  }
-  return sum % 11 === 0;
-}
-function isbn10to13(isbn10) {
-  const core = "978" + isbn10.slice(0, 9);
-  let sum = 0;
-  for (let i = 0; i < 12; i++) sum += parseInt(core[i],10) * (i % 2 === 0 ? 1 : 3);
-  const check = (10 - (sum % 10)) % 10;
-  return core + check;
-}
-
-/* ================================================================
-   Book lookup — OpenBD first, Google Books fallback
-================================================================ */
-async function lookupBook(isbn) {
-  const tryOpenBD = async () => {
-    const r = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
-    if (!r.ok) throw new Error("openbd " + r.status);
-    const arr = await r.json();
-    const it = arr?.[0];
-    if (!it || !it.summary) return null;
-    return {
-      title:  it.summary.title  || "",
-      author: it.summary.author || "",
-      cover:  it.summary.cover  || "",
-      source: "openbd",
-    };
-  };
-  const tryGoogle = async () => {
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-    if (!r.ok) throw new Error("google " + r.status);
-    const j = await r.json();
-    const v = j?.items?.[0]?.volumeInfo;
-    if (!v) return null;
-    return {
-      title:  v.title || "",
-      author: (v.authors || []).join(", "),
-      cover:  (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/, "https:"),
-      source: "google",
-    };
-  };
-
-  try {
-    const a = await tryOpenBD();
-    if (a && a.title) return a;
-  } catch (e) { console.warn(e); }
-  try {
-    const b = await tryGoogle();
-    if (b && b.title) return b;
-  } catch (e) { console.warn(e); }
-  return null;
-}
-
-/* ================================================================
-   Render list
-================================================================ */
-function getFiltered() {
-  const q = $("#searchInput").value.trim().toLowerCase();
-  const selectedGenre = $("#genreFilter")?.value || "";
-  const sort = $("#sortSelect").value;
-  let arr = books.filter(b => {
-    const matchesText = !q
-      || (b.title || "").toLowerCase().includes(q)
-      || (b.author || "").toLowerCase().includes(q)
-      || (b.genre || "").toLowerCase().includes(q);
-    const matchesGenre = !selectedGenre || (b.genre || "") === selectedGenre;
-    return matchesText && matchesGenre;
-  });
-  const cmp = {
-    addedDesc: (a, b) => (b.addedAt || "").localeCompare(a.addedAt || ""),
-    addedAsc:  (a, b) => (a.addedAt || "").localeCompare(b.addedAt || ""),
-    readDesc:  (a, b) => (b.readAt  || "").localeCompare(a.readAt  || ""),
-    readAsc:   (a, b) => (a.readAt  || "").localeCompare(b.readAt  || ""),
-    titleAsc:  (a, b) => (a.title   || "").localeCompare(b.title  || "", "ja"),
-  }[sort];
-  return arr.sort(cmp);
-}
-
-function refreshGenreOptions() {
-  const sel = $("#genreFilter");
-  if (!sel) return;
-  const current = sel.value;
-  const genres = [...new Set(books.map(b => (b.genre || "").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ja"));
-  sel.innerHTML = `<option value="">すべてのジャンル</option>` + genres.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
-  if (genres.includes(current)) sel.value = current;
-}
-
-function render() {
-  refreshGenreOptions();
-  const list = $("#list");
-  list.innerHTML = "";
-  const filtered = getFiltered();
-
-  $("#counter").textContent = books.length === 0
-    ? ""
-    : `${filtered.length} / ${books.length} 冊`;
-
-  if (books.length === 0) {
-    list.innerHTML = "";
-    list.appendChild($("#emptyTpl").content.cloneNode(true));
-    return;
-  }
-  if (filtered.length === 0) {
-    list.innerHTML = `<div class="empty col-span-full">該当する本はありません。</div>`;
-    return;
-  }
-
-  for (const b of filtered) {
-    const el = document.createElement("article");
-    el.className = "book-card rounded-xl p-3 flex gap-3 fade-up cursor-pointer";
-    el.dataset.id = b.id;
-    el.innerHTML = `
-      <div class="shrink-0">
-        ${b.cover
-          ? `<img src="${escapeHtml(b.cover)}" alt="" class="w-16 h-24 object-cover rounded-md cover-shadow bg-aged" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs',textContent:'No Cover'}))">`
-          : `<div class="w-16 h-24 rounded-md bg-aged grid place-items-center text-sepia text-xs">No Cover</div>`}
-      </div>
-      <div class="min-w-0 flex-1">
-        <p class="display-serif text-ink text-base leading-snug line-clamp-3">${escapeHtml(b.title || "（無題）")}</p>
-        <p class="text-sepia text-xs mt-1 line-clamp-1">${escapeHtml(b.author || "")}</p>
-        ${b.genre ? `<p class="pill mt-2">${escapeHtml(b.genre)}</p>` : ""}
-        ${b.readAt ? `<p class="label-italic text-xs text-burgundy mt-2">read · ${fmtDate(b.readAt)}</p>` : ""}
-        ${b.comment ? `<p class="text-sepia text-xs mt-1 line-clamp-2">“${escapeHtml(b.comment)}”</p>` : ""}
-      </div>
-    `;
-    el.addEventListener("click", () => openEditSheet(b.id));
-    list.appendChild(el);
-  }
-}
-
-/* ================================================================
-   Edit sheet
-================================================================ */
-function openEditSheet(id, prefill = null) {
-  editingId = id;
-  const b = id ? books.find(x => x.id === id) : prefill;
-  $("#editKicker").textContent = id ? "Edit entry" : "New entry";
-  $("#editTitle").textContent  = id ? "本の情報を編集" : "本の情報";
-  $("#fTitle").value   = b?.title   || "";
-  $("#fAuthor").value  = b?.author  || "";
-  $("#fIsbn").value    = b?.isbn    || "";
-  $("#fReadAt").value  = b?.readAt  || "";
-  $("#fGenre").value   = b?.genre   || "";
-  $("#fComment").value = b?.comment || "";
-  const cov = $("#editCover");
-  if (b?.cover) { cov.src = b.cover; cov.style.background = ""; }
-  else          { cov.removeAttribute("src"); cov.style.background = "#D4C9B4"; }
-
-  $("#deleteBtn").classList.toggle("hidden", !id);
-  show("#editSheet");
-}
-
-$("#saveBtn").addEventListener("click", () => {
-  const title  = $("#fTitle").value.trim();
-  const author = $("#fAuthor").value.trim();
-  const isbn   = $("#fIsbn").value.trim();
-  const readAt = $("#fReadAt").value || "";
-  const genre  = $("#fGenre").value.trim();
-  const comment= $("#fComment").value.trim();
-  const cover  = $("#editCover").getAttribute("src") || "";
-
-  if (!title) { toast("タイトルを入力してください", "error"); return; }
-
-  if (editingId) {
-    const i = books.findIndex(b => b.id === editingId);
-    if (i >= 0) {
-      books[i] = { ...books[i], title, author, isbn, readAt, genre, comment, cover };
-    }
-  } else {
-    books.unshift({
-      id: uid(),
-      title, author, isbn, readAt, genre, comment, cover,
-      addedAt: new Date().toISOString(),
+    // エンターキーで検索
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchBooks();
     });
-  }
-  saveBooks(books);
-  hide("#editSheet");
-  render();
-  toast(editingId ? "更新しました" : "本棚に追加しました");
-  editingId = null;
-});
 
-$("#deleteBtn").addEventListener("click", () => {
-  if (!editingId) return;
-  const b = books.find(x => x.id === editingId);
-  if (!b) return;
-  if (!confirm(`「${b.title}」を削除しますか？`)) return;
-  books = books.filter(x => x.id !== editingId);
-  saveBooks(books);
-  hide("#editSheet");
-  render();
-  toast("削除しました");
-  editingId = null;
-});
+    function saveApiKey() {
+        const apiKey = apiKeyInput.value.trim();
 
-/* ================================================================
-   Scan sheet
-================================================================ */
-$("#fab").addEventListener("click", () => openScanSheet());
+        if (!apiKey) {
+            alert('APIキーが空です。保存するAPIキーを入力してください。');
+            return;
+        }
 
-function showCameraGuide(message = "カメラを起動できませんでした。") {
-  $("#scanStatus").textContent = message;
-  $("#cameraGuide").classList.remove("hidden");
-}
-function hideCameraGuide() {
-  $("#cameraGuide").classList.add("hidden");
-}
-function explainCameraError(err) {
-  const name = err?.name || "";
-  if (name === "NotAllowedError" || name === "SecurityError") return "カメラが許可されていません。下の手順で許可してください。";
-  if (name === "NotFoundError" || name === "DevicesNotFoundError") return "利用できるカメラが見つかりませんでした。";
-  if (name === "NotReadableError" || name === "TrackStartError") return "他のアプリがカメラを使用中かもしれません。閉じてから再試行してください。";
-  if (!window.isSecureContext) return "HTTPSではないためカメラを使えません。HTTPSのURLで開いてください。";
-  return "カメラを起動できませんでした。下の手順を確認してください。";
-}
-async function pickBackCameraId() {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error("mediaDevices unsupported");
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-  stream.getTracks().forEach(t => t.stop());
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const cams = devices.filter(d => d.kind === "videoinput");
-  const back = cams.find(d => /back|rear|environment|背面|外側/i.test(d.label));
-  return (back || cams[0])?.deviceId || null;
-}
-async function startScanner() {
-  if (!scanner) scanner = new Html5Qrcode("reader", { verbose: false });
-  const options = {
-    fps: 12,
-    qrbox: (vw, vh) => {
-      const w = Math.min(vw * 0.78, 420);
-      const h = Math.min(vh * 0.28, 160);
-      return { width: w, height: h };
-    },
-    aspectRatio: 1.6,
-    formatsToSupport: [
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-    ],
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-  };
-  const cameraId = await pickBackCameraId();
-  try {
-    await scanner.start(cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" }, options, onScanSuccess, () => {});
-  } catch (e) {
-    console.warn("cameraId start failed; retry facingMode", e);
-    await scanner.start({ facingMode: "environment" }, options, onScanSuccess, () => {});
-  }
-}
-async function openScanSheet() {
-  show("#scanSheet");
-  hideCameraGuide();
-  $("#scanStatus").textContent = "カメラを起動しています…";
-  $("#manualIsbn").value = "";
-  lastScanned = ""; lastScanAt = 0;
-  if (cameraStarting) return;
-  cameraStarting = true;
-  try {
-    await startScanner();
-    $("#scanStatus").textContent = "本のISBNバーコードを枠内に収めてください";
-  } catch (err) {
-    console.error(err);
-    showCameraGuide(explainCameraError(err));
-  } finally {
-    cameraStarting = false;
-  }
-}
-
-async function closeScanSheet() {
-  hide("#scanSheet");
-  hideCameraGuide();
-  if (scanner) {
-    try { await scanner.stop(); } catch {}
-    try { scanner.clear(); } catch {}
-  }
-}
-
-async function onScanSuccess(decoded) {
-  const now = Date.now();
-  if (decoded === lastScanned && now - lastScanAt < 2500) return;
-  lastScanned = decoded; lastScanAt = now;
-
-  const isbn = normalizeIsbn(decoded);
-  if (!isbn || !(isbn.startsWith("978") || isbn.startsWith("979"))) {
-    $("#scanStatus").textContent = `読み取り：${decoded}（書籍のISBNではないようです）`;
-    return;
-  }
-  $("#scanStatus").textContent = `読み取り成功：${isbn} を検索しています…`;
-  await handleIsbn(isbn);
-}
-
-async function handleIsbn(isbn) {
-  // already in library?
-  const exists = books.find(b => b.isbn === isbn);
-  if (exists) {
-    await closeScanSheet();
-    toast("既に登録されています");
-    openEditSheet(exists.id);
-    return;
-  }
-  const meta = await lookupBook(isbn);
-  await closeScanSheet();
-  if (!meta) {
-    toast("書籍情報が見つかりませんでした", "error");
-    openEditSheet(null, { isbn });
-    return;
-  }
-  openEditSheet(null, { isbn, ...meta });
-}
-
-$("#manualLookup").addEventListener("click", async () => {
-  const raw = $("#manualIsbn").value;
-  const isbn = normalizeIsbn(raw);
-  if (!isbn) { toast("ISBNの形式が正しくありません", "error"); return; }
-  $("#scanStatus").textContent = `${isbn} を検索しています…`;
-  await handleIsbn(isbn);
-});
-
-$("#manualAddBtn").addEventListener("click", async () => {
-  await closeScanSheet();
-  openEditSheet(null, {});
-});
-$("#showGuideBtn").addEventListener("click", () => showCameraGuide("カメラ設定ガイドを表示しています。"));
-$("#retryCameraBtn").addEventListener("click", () => openScanSheet());
-$("#copyUrlBtn").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText(location.href); toast("URLをコピーしました"); }
-  catch { toast("コピーできませんでした", "error"); }
-});
-
-/* ================================================================
-   Export
-================================================================ */
-$("#exportBtn").addEventListener("click", () => {
-  if (books.length === 0) { toast("書き出すデータがありません", "error"); return; }
-  show("#exportSheet");
-});
-
-const downloadBlob = (blob, filename) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-};
-
-$("#exportJson").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
-  downloadBlob(blob, `library-${today()}.json`);
-  hide("#exportSheet");
-  toast("JSONを書き出しました");
-});
-
-$("#exportCsv").addEventListener("click", () => {
-  const cols = ["id","title","author","genre","isbn","readAt","addedAt","comment","cover"];
-  const esc = (v) => {
-    const s = (v ?? "").toString().replace(/"/g, '""');
-    return /[",\n]/.test(s) ? `"${s}"` : s;
-  };
-  const lines = [cols.join(",")];
-  for (const b of books) lines.push(cols.map(c => esc(b[c])).join(","));
-  // BOM for Excel friendliness
-  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv" });
-  downloadBlob(blob, `library-${today()}.csv`);
-  hide("#exportSheet");
-  toast("CSVを書き出しました");
-});
-
-/* ================================================================
-   Sheet open/close helpers
-================================================================ */
-function show(sel) { $(sel).classList.remove("hidden"); document.body.style.overflow = "hidden"; }
-function hide(sel) { $(sel).classList.add("hidden");    document.body.style.overflow = ""; }
-
-document.addEventListener("click", (e) => {
-  const closer = e.target.closest("[data-close]");
-  if (!closer) return;
-  const sheet = closer.closest("#scanSheet, #editSheet, #exportSheet, #recommendSheet");
-  if (!sheet) return;
-  if (sheet.id === "scanSheet") closeScanSheet();
-  else hide("#" + sheet.id);
-});
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    if (!$("#scanSheet").classList.contains("hidden")) closeScanSheet();
-    else if (!$("#editSheet").classList.contains("hidden")) hide("#editSheet");
-    else if (!$("#exportSheet").classList.contains("hidden")) hide("#exportSheet");
-    else if (!$("#recommendSheet").classList.contains("hidden")) hide("#recommendSheet");
-  }
-});
-
-/* ================================================================
-   Filter / sort triggers
-================================================================ */
-$("#searchInput").addEventListener("input", render);
-$("#sortSelect").addEventListener("change", render);
-$("#genreFilter").addEventListener("change", render);
-
-
-/* ================================================================
-   Recommendations
-================================================================ */
-function recommendationKeyword() {
-  const genres = books.map(b => (b.genre || "").trim()).filter(Boolean);
-  if (genres.length) return genres[Math.floor(Math.random() * genres.length)];
-  const q = $("#searchInput").value.trim();
-  return q || "本";
-}
-async function loadRecommendations() {
-  const list = $("#recommendList");
-  const keyword = recommendationKeyword();
-  list.innerHTML = `<p class="text-sm text-sepia">「${escapeHtml(keyword)}」に近い本を探しています…</p>`;
-  try {
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&langRestrict=ja&maxResults=6`);
-    if (!r.ok) throw new Error(r.status);
-    const j = await r.json();
-    const items = (j.items || []).map(x => x.volumeInfo).filter(Boolean);
-    if (!items.length) { list.innerHTML = `<div class="empty">おすすめ候補が見つかりませんでした。</div>`; return; }
-    list.innerHTML = "";
-    for (const v of items) {
-      const title = v.title || "（無題）";
-      const author = (v.authors || []).join(", ");
-      const cover = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || "").replace(/^http:/,"https:");
-      const card = document.createElement("article");
-      card.className = "book-card rounded-xl p-3 flex gap-3";
-      card.innerHTML = `${cover ? `<img src="${escapeHtml(cover)}" class="w-12 h-18 object-cover rounded bg-aged" alt="">` : `<div class="w-12 h-18 rounded bg-aged"></div>`}<div class="min-w-0"><p class="display-serif leading-snug">${escapeHtml(title)}</p><p class="text-xs text-sepia mt-1">${escapeHtml(author)}</p></div>`;
-      list.appendChild(card);
+        localStorage.setItem(STORAGE_KEY, apiKey);
+        alert('APIキーをこのブラウザに保存しました。次回から保存したキーを優先して使います。');
     }
-  } catch(e) {
-    console.error(e);
-    list.innerHTML = `<div class="empty">おすすめを取得できませんでした。通信状態を確認してください。</div>`;
-  }
-}
-$("#recommendBtn").addEventListener("click", () => { show("#recommendSheet"); loadRecommendations(); });
-$("#loadRecommendBtn").addEventListener("click", loadRecommendations);
-$("#notifyRecommendBtn").addEventListener("click", async () => {
-  if (!("Notification" in window)) { toast("このブラウザは通知に対応していません", "error"); return; }
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") { toast("通知が許可されませんでした", "error"); return; }
-  const keyword = recommendationKeyword();
-  new Notification("蔵書からのおすすめ", { body: `今日は「${keyword}」に近い本を探してみませんか？` });
-  toast("通知を表示しました");
-});
 
-/* ================================================================
-   Service Worker
-================================================================ */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW register failed:", err));
-  });
-}
+    function clearApiKey() {
+        apiKeyInput.value = "";
+        localStorage.removeItem(STORAGE_KEY);
+        alert('保存済みAPIキーを削除しました。');
+    }
 
-/* ================================================================
-   Boot
-================================================================ */
-render();
+    function getApiKey() {
+        return apiKeyInput.value.trim();
+    }
+
+    function toggleApiKeyVisibility() {
+        apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+    }
+
+    function escapeText(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function setText(parent, selector, value) {
+        parent.querySelector(selector).textContent = value;
+    }
+
+    async function searchBooks() {
+        const input = document.getElementById('searchInput').value.trim();
+        if (!input) return;
+
+        // 入力されているAPIキーは検索時にも保存
+        const currentApiKey = getApiKey();
+        if (currentApiKey) {
+            localStorage.setItem(STORAGE_KEY, currentApiKey);
+        }
+
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+
+        loadingDiv.style.display = 'block';
+        resultsDiv.innerHTML = '';
+
+        try {
+            let fetchUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(input)}&maxResults=20`;
+            const apiKey = getApiKey();
+
+            if (apiKey !== "") {
+                fetchUrl += `&key=${encodeURIComponent(apiKey)}`;
+            }
+
+            const response = await fetch(fetchUrl);
+
+            if (!response.ok) {
+                throw new Error(`APIリクエスト失敗: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.items || data.items.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">見つかりませんでした。</p>';
+                return;
+            }
+
+            data.items.forEach(item => {
+                const info = item.volumeInfo || {};
+                const title = info.title || "不明";
+                const authors = info.authors ? info.authors.join(', ') : "著者不明";
+                const summary = info.description || "概要なし";
+
+                let thumb = "https://placehold.jp/150x200.png?text=No+Image";
+                if (info.imageLinks) {
+                    const imageUrl = info.imageLinks.thumbnail || info.imageLinks.smallThumbnail;
+                    if (imageUrl) thumb = imageUrl.replace("http://", "https://");
+                }
+
+                let isbn13 = "";
+                if (info.industryIdentifiers) {
+                    const found = info.industryIdentifiers.find(id => id.type === "ISBN_13");
+                    if (found) isbn13 = found.identifier;
+                }
+
+                let searchKeyword = "";
+                if (isbn13) {
+                    searchKeyword = isbn13;
+                } else {
+                    const simpleTitle = title.split(':')[0].split('(')[0].split('（')[0].trim();
+                    searchKeyword = simpleTitle || title;
+                }
+
+                const searchUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(searchKeyword)}`;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                card.innerHTML = `
+                    <div class="img-box"><img src="" alt="cover"></div>
+                    <div class="info-box">
+                        <div class="title"></div>
+                        <div class="author"></div>
+                        <div class="summary"></div>
+                    </div>
+                    <div class="actions">
+                        <a href="" target="_blank" class="btn btn-search" rel="noopener noreferrer">1. Amazonで検索してURLをコピー</a>
+                        <input type="url" class="url-input" placeholder="2. コピーしたURLを貼り付け" oninput="updateLink(this)">
+                        <a href="#" target="_blank" class="btn btn-open" rel="noopener noreferrer">貼り付けたURLを確認する</a>
+                        <button class="btn btn-add">3. リストに追加</button>
+                    </div>
+                `;
+
+                card.querySelector('img').src = thumb;
+                card.querySelector('img').alt = `${title} cover`;
+                card.querySelector('.btn-search').href = searchUrl;
+                setText(card, '.title', title);
+                setText(card, '.author', authors);
+                setText(card, '.summary', summary);
+
+                card.querySelector('.btn-add').addEventListener('click', function () {
+                    addToList(this, title);
+                });
+
+                resultsDiv.appendChild(card);
+            });
+        } catch (e) {
+            console.error(e);
+            resultsDiv.innerHTML = `<p style="text-align:center; grid-column: 1/-1; color: red; font-weight: bold;">エラーが発生しました（${escapeText(e.message)}）。<br>APIキーが正しく設定されていないか、利用制限に引っかかっている可能性があります。</p>`;
+        } finally {
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    function updateLink(input) {
+        const url = input.value.trim();
+        const openBtn = input.nextElementSibling;
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            openBtn.href = url;
+            openBtn.style.display = 'block';
+        } else {
+            openBtn.style.display = 'none';
+        }
+    }
+
+    function addToList(btn, title) {
+        const card = btn.closest('.card');
+        const summary = card.querySelector('.summary').innerText;
+        const url = card.querySelector('.url-input').value.trim() || "URL未登録";
+        const listArea = document.getElementById('finalList');
+
+        const entry = `【書籍名】${title}\n【URL】${url}\n【概要】${summary}\n------------------------------\n`;
+        listArea.value += entry;
+
+        btn.innerText = "✅ 追加済み";
+        btn.style.background = "#6c757d";
+
+        setTimeout(() => {
+            btn.innerText = "3. リストに追加";
+            btn.style.background = "#28a745";
+        }, 2000);
+    }
+
+    function copyToClipboard() {
+        const listArea = document.getElementById('finalList');
+        if (!listArea.value.trim()) {
+            alert("コピーするリストがありません。");
+            return;
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(listArea.value)
+                .then(() => alert("リスト全体をクリップボードにコピーしました！"))
+                .catch(() => fallbackCopy(listArea));
+        } else {
+            fallbackCopy(listArea);
+        }
+    }
+
+    function fallbackCopy(listArea) {
+        listArea.select();
+        document.execCommand('copy');
+        alert("リスト全体をクリップボードにコピーしました！");
+    }
+
+    function clearFinalList() {
+        if (confirm("作成されたリストを空にしますか？")) {
+            document.getElementById('finalList').value = "";
+        }
+    }
 </script>
+
 </body>
 </html>
